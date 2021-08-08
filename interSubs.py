@@ -5,8 +5,6 @@ import random, re, time
 import threading, queue
 import numpy
 
-from json import loads
-
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot, QSize
 from PyQt5.QtWidgets import QApplication, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QWidget
 from PyQt5.QtGui import QPalette, QPaintEvent, QPainter, QPainterPath, QFontMetrics, QColor, QPen, QBrush
@@ -22,35 +20,11 @@ from data_provider.pons import pons
 from data_provider.redensarten import redensarten
 from data_provider.reverso import reverso
 from data_provider.pronunciation import listen
+from mpv import Mpv
 
 os.chdir(os.path.expanduser('~/.config/mpv/scripts/'))
 import interSubs_config as config
 
-
-def mpv_pause():
-	os.system('echo \'{ "command": ["set_property", "pause", true] }\' | socat - "' + mpv_socket + '" > /dev/null')
-
-def mpv_resume():
-	os.system('echo \'{ "command": ["set_property", "pause", false] }\' | socat - "' + mpv_socket + '" > /dev/null')
-
-def mpv_pause_status():
-	stdoutdata = subprocess.getoutput('echo \'{ "command": ["get_property", "pause"] }\' | socat - "' + mpv_socket + '"')
-
-	try:
-		return loads(stdoutdata)['data']
-	except:
-		return mpv_pause_status()
-
-def mpv_fullscreen_status():
-	stdoutdata = subprocess.getoutput('echo \'{ "command": ["get_property", "fullscreen"] }\' | socat - "' + mpv_socket + '"')
-
-	try:
-		return loads(stdoutdata)['data']
-	except:
-		return mpv_fullscreen_status()
-
-def mpv_message(message, timeout = 3000):
-	os.system('echo \'{ "command": ["show-text", "' + message + '", "' + str(timeout) + '"] }\' | socat - "' + mpv_socket + '" > /dev/null')
 
 def stripsd2(phrase):
 	return ''.join(e for e in phrase.strip().lower() if e == ' ' or (e.isalnum() and not e.isdigit())).strip()
@@ -113,7 +87,7 @@ class thread_subtitles(QObject):
 
 			# hide subs when mpv isn't in focus or in fullscreen
 			if inc * config.update_time > config.focus_checking_time - 0.0001:
-				while 'mpv' not in subprocess.getoutput('xdotool getwindowfocus getwindowname') or (config.hide_when_not_fullscreen_B and not mpv_fullscreen_status()) or (os.path.exists(mpv_socket + '_hide')):
+				while 'mpv' not in subprocess.getoutput('xdotool getwindowfocus getwindowname') or (config.hide_when_not_fullscreen_B and not mpv.is_in_fullscreen()) or (os.path.exists(mpv_socket_path + '_hide')):
 					if not was_hidden:
 						self.update_subtitles.emit(True, False)
 						was_hidden = 1
@@ -162,11 +136,11 @@ class thread_subtitles(QObject):
 
 			while tmp_file_subs != subs:
 				if config.auto_pause == 2:
-					if not auto_pause_2_ind and len(re.sub(' +', ' ', stripsd2(subs.replace('\n', ' '))).split(' ')) > config.auto_pause_min_words - 1 and not mpv_pause_status():
-						mpv_pause()
+					if not auto_pause_2_ind and len(re.sub(' +', ' ', stripsd2(subs.replace('\n', ' '))).split(' ')) > config.auto_pause_min_words - 1 and not mpv.is_paused():
+						mpv.pause()
 						auto_pause_2_ind = 1
 
-					if auto_pause_2_ind and mpv_pause_status():
+					if auto_pause_2_ind and mpv.is_paused():
 						break
 
 					auto_pause_2_ind = 0
@@ -175,7 +149,7 @@ class thread_subtitles(QObject):
 
 				if config.auto_pause == 1:
 					if len(re.sub(' +', ' ', stripsd2(subs.replace('\n', ' '))).split(' ')) > config.auto_pause_min_words - 1:
-						mpv_pause()
+						mpv.pause()
 
 				self.update_subtitles.emit(False, False)
 
@@ -402,7 +376,7 @@ class events_class(QLabel):
 			config.auto_pause = 0
 		else:
 			config.auto_pause += 1
-		mpv_message('auto_pause: %d' % config.auto_pause)
+		mpv.show_text('auto_pause: %d' % config.auto_pause)
 
 	def f_listen(self, event):
 		listen(self.word, config.listen_via)
@@ -410,32 +384,32 @@ class events_class(QLabel):
 	@pyqtSlot()
 	def f_subs_screen_edge_padding_decrease(self, event):
 		config.subs_screen_edge_padding -= 5
-		mpv_message('subs_screen_edge_padding: %d' % config.subs_screen_edge_padding)
+		mpv.show_text('subs_screen_edge_padding: %d' % config.subs_screen_edge_padding)
 		self.redraw.emit(False, True)
 
 	@pyqtSlot()
 	def f_subs_screen_edge_padding_increase(self, event):
 		config.subs_screen_edge_padding += 5
-		mpv_message('subs_screen_edge_padding: %d' % config.subs_screen_edge_padding)
+		mpv.show_text('subs_screen_edge_padding: %d' % config.subs_screen_edge_padding)
 		self.redraw.emit(False, True)
 
 	@pyqtSlot()
 	def f_font_size_decrease(self, event):
-		config.style_subs = re.sub('font-size: (\d+)px;', lambda size: [ 'font-size: %dpx;' % ( int(size.group(1)) - 1 ), mpv_message('font: %s' % size.group(1)) ][0], config.style_subs, flags = re.I)
+		config.style_subs = re.sub('font-size: (\d+)px;', lambda size: [ 'font-size: %dpx;' % ( int(size.group(1)) - 1 ), mpv.show_text('font: %s' % size.group(1))][0], config.style_subs, flags = re.I)
 		self.redraw.emit(False, True)
 
 	@pyqtSlot()
 	def f_font_size_increase(self, event):
-		config.style_subs = re.sub('font-size: (\d+)px;', lambda size: [ 'font-size: %dpx;' % ( int(size.group(1)) + 1 ), mpv_message('font: %s' % size.group(1)) ][0], config.style_subs, flags = re.I)
+		config.style_subs = re.sub('font-size: (\d+)px;', lambda size: [ 'font-size: %dpx;' % ( int(size.group(1)) + 1 ), mpv.show_text('font: %s' % size.group(1))][0], config.style_subs, flags = re.I)
 		self.redraw.emit(False, True)
 
 	def f_auto_pause_min_words_decrease(self, event):
 		config.auto_pause_min_words -= 1
-		mpv_message('auto_pause_min_words: %d' % config.auto_pause_min_words)
+		mpv.show_text('auto_pause_min_words: %d' % config.auto_pause_min_words)
 
 	def f_auto_pause_min_words_increase(self, event):
 		config.auto_pause_min_words += 1
-		mpv_message('auto_pause_min_words: %d' % config.auto_pause_min_words)
+		mpv.show_text('auto_pause_min_words: %d' % config.auto_pause_min_words)
 
 	# f_deepl_translation -> f_translation_full_sentence
 	@pyqtSlot()
@@ -531,8 +505,8 @@ class main_class(QWidget):
 		self.subtitles_vbox2.setContentsMargins(0, 0, 0, 0)
 
 		if config.pause_during_translation_B:
-			self.subtitles2.enterEvent = lambda event : [mpv_pause(), setattr(config, 'block_popup', False)][0]
-			self.subtitles2.leaveEvent = lambda event : [mpv_resume(), setattr(config, 'block_popup', True)][0] if not config.avoid_resuming else [setattr(config, 'avoid_resuming', False), setattr(config, 'block_popup', True)][0]
+			self.subtitles2.enterEvent = lambda event : [mpv.pause(), setattr(config, 'block_popup', False)][0]
+			self.subtitles2.leaveEvent = lambda event : [mpv.resume(), setattr(config, 'block_popup', True)][0] if not config.avoid_resuming else [setattr(config, 'avoid_resuming', False), setattr(config, 'block_popup', True)][0]
 
 	def popup_base(self):
 		self.popup = QFrame()
@@ -788,10 +762,9 @@ if __name__ == "__main__":
 	except:
 		pass
 
-	mpv_socket = sys.argv[1]
+	mpv_socket_path = sys.argv[1]
+	mpv = Mpv(mpv_socket_path)
 	sub_file = sys.argv[2]
-	# sub_file = '/tmp/mpv_sub_'
-	# mpv_socket = '/tmp/mpv_socket_'
 
 	subs = ''
 
