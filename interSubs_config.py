@@ -45,13 +45,13 @@ tab_divided_dict_fname = '~/d/python_shit/mpv/scripts/z.dict'
 # strip <.*?>
 tab_divided_dict_remove_tags_B = True
 
-pause_during_translation_B = True
+is_paused_during_translation = True
 # don't hide subtitle when its time is up and keep it on screen until the next line
 extend_subs_duration2max_B = True
 # limit extension duration in seconds; N == 0: do not limit
 extend_subs_duration_limit_sec = 33
 # show interSubs only in fullscreen
-hide_when_not_fullscreen_B = True
+is_visible_in_fullscreen_only = True
 
 # interval between checking for the next subtitle; in seconds
 update_time = .01

@@ -75,37 +75,37 @@ def dir2(name):
 	print('\n'.join(dir( name )))
 	exit()
 
-class thread_subtitles(QObject):
-	update_subtitles = pyqtSignal(bool, bool)
+class SubtitlesRenderer(QObject):
+	on_visibility_changed = pyqtSignal(bool, bool)
 
 	@pyqtSlot()
-	def main(self):
+	def render(self):
 		global subtitles_text
 
-		was_hidden = 0
-		inc = 0
+		is_hidden = False
 		auto_pause_2_ind = 0
 		last_updated = time.time()
 
+		i = 0
 		while 1:
 			time.sleep(config.update_time)
 
 			# hide subs when mpv isn't in focus or in fullscreen
-			if inc * config.update_time > config.focus_checking_time - 0.0001:
+			if i * config.update_time > config.focus_checking_time - 0.0001:
 				while 'mpv' not in subprocess.getoutput('xdotool getwindowfocus getwindowname') \
-						or (config.hide_when_not_fullscreen_B and not mpv.is_in_fullscreen()) \
+						or (config.is_visible_in_fullscreen_only and not mpv.is_in_fullscreen()) \
 						or (os.path.exists(mpv_socket_path + '_hide')):
-					if not was_hidden:
-						self.update_subtitles.emit(True, False)
-						was_hidden = 1
+					if not is_hidden:
+						self.on_visibility_changed.emit(True, False)
+						is_hidden = True
 					else:
 						time.sleep(config.focus_checking_time)
-				inc = 0
-			inc += 1
+				i = 0
+			i += 1
 
-			if was_hidden:
-				was_hidden = 0
-				self.update_subtitles.emit(False, False)
+			if is_hidden:
+				is_hidden = False
+				self.on_visibility_changed.emit(False, False)
 				continue
 
 			try:
@@ -139,7 +139,7 @@ class thread_subtitles(QObject):
 				os.system('notify-send -i none -t 1111 "He"')
 				os.system('notify-send -i none -t 1111 "%s"' % str(frf))
 
-				self.update_subtitles.emit(False, True)
+				self.on_visibility_changed.emit(False, True)
 
 			while tmp_file_subs != subtitles_text:
 				if config.auto_pause == 2:
@@ -158,7 +158,7 @@ class thread_subtitles(QObject):
 					if len(re.sub(' +', ' ', stripsd2(subtitles_text.replace('\n', ' '))).split(' ')) > config.auto_pause_min_words - 1:
 						mpv.pause()
 
-				self.update_subtitles.emit(False, False)
+				self.on_visibility_changed.emit(False, False)
 
 				break
 
@@ -451,12 +451,14 @@ class main_class(QWidget):
 	def __init__(self):
 		super().__init__()
 
-		self.thread_subs = QThread()
-		self.obj = thread_subtitles()
-		self.obj.update_subtitles.connect(self.render_subtitles)
-		self.obj.moveToThread(self.thread_subs)
-		self.thread_subs.started.connect(self.obj.main)
-		self.thread_subs.start()
+		self.subs_renderer_thread = QThread()
+
+		self.subs_renderer = SubtitlesRenderer()
+		self.subs_renderer.on_visibility_changed.connect(self.render_subtitles)
+		self.subs_renderer.moveToThread(self.subs_renderer_thread)
+
+		self.subs_renderer_thread.started.connect(self.subs_renderer.render)
+		self.subs_renderer_thread.start()
 
 		self.thread_translations = QThread()
 		self.obj2 = thread_translations()
@@ -471,7 +473,7 @@ class main_class(QWidget):
 
 		self.second_subs_frame = self.create_frame(config.style_subs)
 		self.second_subs_qv_box_layout = self.create_subtitles_qv_box_layout(self.second_subs_frame)
-		if config.pause_during_translation_B:
+		if config.is_paused_during_translation:
 			self.second_subs_frame.enterEvent = lambda event: [mpv.pause(), setattr(config, 'block_popup', False)][0]
 			self.second_subs_frame.leaveEvent = lambda event: [mpv.resume(), setattr(config, 'block_popup', True)][
 				0] if not config.avoid_resuming else \
@@ -522,8 +524,8 @@ class main_class(QWidget):
 		self.popup_vbox = QVBoxLayout(self.popup_inner)
 		self.popup_vbox.setSpacing(0)
 
-	def render_subtitles(self, hide = False, redraw = False):
-		if hide or not len(subtitles_text):
+	def render_subtitles(self, is_hidden=False, redraw = False):
+		if is_hidden or not len(subtitles_text):
 			try:
 				self.first_subs_frame.hide()
 				self.second_subs_frame.hide()
