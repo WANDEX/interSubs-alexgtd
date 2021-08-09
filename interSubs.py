@@ -1,13 +1,18 @@
 #! /usr/bin/env python
 
-import os, subprocess, sys
-import random, re, time
-import threading, queue
-import numpy
+import os
+import queue
+import random
+import re
+import subprocess
+import sys
+import threading
+import time
 
+import numpy
 from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot, QSize
-from PyQt5.QtWidgets import QApplication, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QWidget
 from PyQt5.QtGui import QPalette, QPaintEvent, QPainter, QPainterPath, QFontMetrics, QColor, QPen, QBrush
+from PyQt5.QtWidgets import QApplication, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QWidget
 
 from data_provider.deepl import deepl
 from data_provider.dict_cc import dict_cc
@@ -75,7 +80,7 @@ class thread_subtitles(QObject):
 
 	@pyqtSlot()
 	def main(self):
-		global subs
+		global subtitles_text
 
 		was_hidden = 0
 		inc = 0
@@ -87,7 +92,9 @@ class thread_subtitles(QObject):
 
 			# hide subs when mpv isn't in focus or in fullscreen
 			if inc * config.update_time > config.focus_checking_time - 0.0001:
-				while 'mpv' not in subprocess.getoutput('xdotool getwindowfocus getwindowname') or (config.hide_when_not_fullscreen_B and not mpv.is_in_fullscreen()) or (os.path.exists(mpv_socket_path + '_hide')):
+				while 'mpv' not in subprocess.getoutput('xdotool getwindowfocus getwindowname') \
+						or (config.hide_when_not_fullscreen_B and not mpv.is_in_fullscreen()) \
+						or (os.path.exists(mpv_socket_path + '_hide')):
 					if not was_hidden:
 						self.update_subtitles.emit(True, False)
 						was_hidden = 1
@@ -102,7 +109,7 @@ class thread_subtitles(QObject):
 				continue
 
 			try:
-				tmp_file_subs = open(sub_file).read()
+				tmp_file_subs = open(subs_file_path).read()
 			except:
 				continue
 			
@@ -125,7 +132,7 @@ class thread_subtitles(QObject):
 				frf = random.choice(config.he_fonts)
 				config.style_subs = re.sub('font-family: ".*?";', lambda ff: 'font-family: "%s";' % frf, config.style_subs, flags = re.I)
 
-				config.R2L_from_B = True
+				config.is_native_lang_right_to_left = True
 				config.translation_function_names = config.translation_function_names_2
 				config.listen_via = 'forvo'
 
@@ -134,9 +141,9 @@ class thread_subtitles(QObject):
 
 				self.update_subtitles.emit(False, True)
 
-			while tmp_file_subs != subs:
+			while tmp_file_subs != subtitles_text:
 				if config.auto_pause == 2:
-					if not auto_pause_2_ind and len(re.sub(' +', ' ', stripsd2(subs.replace('\n', ' '))).split(' ')) > config.auto_pause_min_words - 1 and not mpv.is_paused():
+					if not auto_pause_2_ind and len(re.sub(' +', ' ', stripsd2(subtitles_text.replace('\n', ' '))).split(' ')) > config.auto_pause_min_words - 1 and not mpv.is_paused():
 						mpv.pause()
 						auto_pause_2_ind = 1
 
@@ -145,10 +152,10 @@ class thread_subtitles(QObject):
 
 					auto_pause_2_ind = 0
 
-				subs = tmp_file_subs
+				subtitles_text = tmp_file_subs
 
 				if config.auto_pause == 1:
-					if len(re.sub(' +', ' ', stripsd2(subs.replace('\n', ' '))).split(' ')) > config.auto_pause_min_words - 1:
+					if len(re.sub(' +', ' ', stripsd2(subtitles_text.replace('\n', ' '))).split(' ')) > config.auto_pause_min_words - 1:
 						mpv.pause()
 
 				self.update_subtitles.emit(False, False)
@@ -207,7 +214,7 @@ class drawing_layer(QLabel):
 
 		font = self.font()
 		text_path = QPainterPath()
-		if config.R2L_from_B:
+		if config.is_native_lang_right_to_left:
 			text_path.addText(x, y, font, ' ' + r2l(text.strip()) + ' ')
 		else:
 			text_path.addText(x, y, font, text)
@@ -243,7 +250,7 @@ class drawing_layer(QLabel):
 		painter.setPen(color)
 		painter.drawText(x, y, text)
 
-	if config.outline_B:
+	if config.is_subs_outlined:
 		def paintEvent(self, evt: QPaintEvent):
 			if not self.psuedo_line:
 				self.psuedo_line = 1
@@ -286,16 +293,16 @@ class events_class(QLabel):
 		self.word = word
 		self.subs = subs
 		self.skip = skip
-		self.highlight = False
+		self.is_highlighting = False
 
 		self.setStyleSheet('background: transparent; color: transparent;')
 
-	def highligting(self, color, underline_width):
+	def highlight(self, color, underline_width):
 		color = QColor(color)
 		color = QColor(color.red(), color.green(), color.blue(), 200)
 		painter = QPainter(self)
 
-		if config.hover_underline:
+		if config.is_hover_underline:
 			font_metrics = QFontMetrics(self.font())
 			text_width = font_metrics.width(self.word)
 			text_height = font_metrics.height()
@@ -306,17 +313,17 @@ class events_class(QLabel):
 			if not self.skip:
 				painter.drawLine(0, text_height - underline_width, text_width, text_height - underline_width)
 
-		if config.hover_hightlight:
+		if config.is_hover_highlight:
 			x = y = 0
 			y += self.fontMetrics().ascent()
 
 			painter.setPen(color)
 			painter.drawText(x, y + config.outline_top_padding - config.outline_bottom_padding, self.word)
 
-	if config.outline_B:
+	if config.is_subs_outlined:
 		def paintEvent(self, evt: QPaintEvent):
-			if self.highlight:
-				self.highligting(config.hover_color, config.hover_underline_thickness)
+			if self.is_highlighting:
+				self.highlight(config.hover_color, config.hover_underline_thickness)
 
 	#####################################################
 
@@ -328,14 +335,14 @@ class events_class(QLabel):
 
 	def enterEvent(self, event):
 		if not self.skip:
-			self.highlight = True
+			self.is_highlighting = True
 			self.repaint()
 			config.queue_to_translate.put((self.word, event.globalX()))
 
 	@pyqtSlot()
 	def leaveEvent(self, event):
 		if not self.skip:
-			self.highlight = False
+			self.is_highlighting = False
 			self.repaint()
 
 			config.scroll = {}
@@ -459,20 +466,30 @@ class main_class(QWidget):
 		self.thread_translations.start()
 
 		# start the forms
-		self.subtitles_base()
-		self.subtitles_base2()
-		self.popup_base()
+		self.first_subs_frame = self.create_frame(config.style_subs)
+		self.first_subs_qv_box_layout = self.create_subtitles_qv_box_layout(self.first_subs_frame)
+
+		self.second_subs_frame = self.create_frame(config.style_subs)
+		self.second_subs_qv_box_layout = self.create_subtitles_qv_box_layout(self.second_subs_frame)
+		if config.pause_during_translation_B:
+			self.second_subs_frame.enterEvent = lambda event: [mpv.pause(), setattr(config, 'block_popup', False)][0]
+			self.second_subs_frame.leaveEvent = lambda event: [mpv.resume(), setattr(config, 'block_popup', True)][
+				0] if not config.avoid_resuming else \
+			[setattr(config, 'avoid_resuming', False), setattr(config, 'block_popup', True)][0]
+
+		self.popup_frame = self.create_frame(config.style_popup)
+		self.add_inner_frame_to_popup()
 
 	def clearLayout(self, layout):
 		if layout == 'subs':
-			layout = self.subtitles_vbox
-			self.subtitles.hide()
+			layout = self.first_subs_qv_box_layout
+			self.first_subs_frame.hide()
 		elif layout == 'subs2':
-			layout = self.subtitles_vbox2
-			self.subtitles2.hide()
+			layout = self.second_subs_qv_box_layout
+			self.second_subs_frame.hide()
 		elif layout == 'popup':
 			layout = self.popup_vbox
-			self.popup.hide()
+			self.popup_frame.hide()
 
 		if layout is not None:
 			while layout.count():
@@ -484,66 +501,50 @@ class main_class(QWidget):
 				else:
 					self.clearLayout(item.layout())
 
-	def subtitles_base(self):
-		self.subtitles = QFrame()
-		self.subtitles.setAttribute(Qt.WA_TranslucentBackground)
-		self.subtitles.setWindowFlags(Qt.X11BypassWindowManagerHint)
-		self.subtitles.setStyleSheet(config.style_subs)
+	def create_frame(self, style_sheet):
+		frame = QFrame()
+		frame.setAttribute(Qt.WA_TranslucentBackground)
+		frame.setWindowFlags(Qt.X11BypassWindowManagerHint)
+		frame.setStyleSheet(style_sheet)
+		return frame
 
-		self.subtitles_vbox = QVBoxLayout(self.subtitles)
-		self.subtitles_vbox.setSpacing(config.subs_padding_between_lines)
-		self.subtitles_vbox.setContentsMargins(0, 0, 0, 0)
+	def create_subtitles_qv_box_layout(self, subs_frame):
+		subs_qv_box_layout = QVBoxLayout(subs_frame)
+		subs_qv_box_layout.setSpacing(config.subs_padding_between_lines)
+		subs_qv_box_layout.setContentsMargins(0, 0, 0, 0)
+		return subs_qv_box_layout
 
-	def subtitles_base2(self):
-		self.subtitles2 = QFrame()
-		self.subtitles2.setAttribute(Qt.WA_TranslucentBackground)
-		self.subtitles2.setWindowFlags(Qt.X11BypassWindowManagerHint)
-		self.subtitles2.setStyleSheet(config.style_subs)
-
-		self.subtitles_vbox2 = QVBoxLayout(self.subtitles2)
-		self.subtitles_vbox2.setSpacing(config.subs_padding_between_lines)
-		self.subtitles_vbox2.setContentsMargins(0, 0, 0, 0)
-
-		if config.pause_during_translation_B:
-			self.subtitles2.enterEvent = lambda event : [mpv.pause(), setattr(config, 'block_popup', False)][0]
-			self.subtitles2.leaveEvent = lambda event : [mpv.resume(), setattr(config, 'block_popup', True)][0] if not config.avoid_resuming else [setattr(config, 'avoid_resuming', False), setattr(config, 'block_popup', True)][0]
-
-	def popup_base(self):
-		self.popup = QFrame()
-		self.popup.setAttribute(Qt.WA_TranslucentBackground)
-		self.popup.setWindowFlags(Qt.X11BypassWindowManagerHint)
-		self.popup.setStyleSheet(config.style_popup)
-
+	def add_inner_frame_to_popup(self):
 		self.popup_inner = QFrame()
-		outer_box = QVBoxLayout(self.popup)
+		outer_box = QVBoxLayout(self.popup_frame)
 		outer_box.addWidget(self.popup_inner)
 
 		self.popup_vbox = QVBoxLayout(self.popup_inner)
 		self.popup_vbox.setSpacing(0)
 
 	def render_subtitles(self, hide = False, redraw = False):
-		if hide or not len(subs):
+		if hide or not len(subtitles_text):
 			try:
-				self.subtitles.hide()
-				self.subtitles2.hide()
+				self.first_subs_frame.hide()
+				self.second_subs_frame.hide()
 			finally:
 				return
 
 		if redraw:
-			self.subtitles.setStyleSheet(config.style_subs)
-			self.subtitles2.setStyleSheet(config.style_subs)
+			self.first_subs_frame.setStyleSheet(config.style_subs)
+			self.second_subs_frame.setStyleSheet(config.style_subs)
 		else:
 			self.clearLayout('subs')
 			self.clearLayout('subs2')
 
 			if hasattr(self, 'popup'):
-				self.popup.hide()
+				self.popup_frame.hide()
 
 			# if subtitle consists of one overly long line - split into two
-			if config.split_long_lines_B and len(subs.split('\n')) == 1 and len(subs.split(' ')) > config.split_long_lines_words_min - 1:
-				subs2 = split_long_lines(subs)
+			if config.split_long_lines_B and len(subtitles_text.split('\n')) == 1 and len(subtitles_text.split(' ')) > config.split_long_lines_words_min - 1:
+				subs2 = split_long_lines(subtitles_text)
 			else:
-				subs2 = subs
+				subs2 = subtitles_text
 
 			subs2 = re.sub(' +', ' ', subs2).strip()
 
@@ -559,7 +560,7 @@ class main_class(QWidget):
 				hbox.addStretch()
 				hbox.addWidget(ll)
 				hbox.addStretch()
-				self.subtitles_vbox.addLayout(hbox)
+				self.first_subs_qv_box_layout.addLayout(hbox)
 
 				####################################
 
@@ -568,7 +569,7 @@ class main_class(QWidget):
 				hbox.setSpacing(0)
 				hbox.addStretch()
 
-				if config.R2L_from_B:
+				if config.is_native_lang_right_to_left:
 					line2 = line2[::-1]
 
 				line2 += '\00'
@@ -578,7 +579,7 @@ class main_class(QWidget):
 						word += smbl
 					else:
 						if len(word):
-							if config.R2L_from_B:
+							if config.is_native_lang_right_to_left:
 								word = word[::-1]
 
 							ll = events_class(word, subs2)
@@ -593,13 +594,13 @@ class main_class(QWidget):
 							hbox.addWidget(ll)
 
 				hbox.addStretch()
-				self.subtitles_vbox2.addLayout(hbox)
+				self.second_subs_qv_box_layout.addLayout(hbox)
 
-		self.subtitles.adjustSize()
-		self.subtitles2.adjustSize()
+		self.first_subs_frame.adjustSize()
+		self.second_subs_frame.adjustSize()
 
-		w = self.subtitles.geometry().width()
-		h = self.subtitles.height = self.subtitles.geometry().height()
+		w = self.first_subs_frame.geometry().width()
+		h = self.first_subs_frame.height = self.first_subs_frame.geometry().height()
 
 		x = (config.screen_width/2) - (w/2)
 
@@ -608,16 +609,16 @@ class main_class(QWidget):
 		else:
 			y = config.screen_height - config.subs_screen_edge_padding - h
 
-		self.subtitles.setGeometry(int(x), int(y), 0, 0)
-		self.subtitles.show()
+		self.first_subs_frame.setGeometry(int(x), int(y), 0, 0)
+		self.first_subs_frame.show()
 
-		self.subtitles2.setGeometry(int(x), int(y), 0, 0)
-		self.subtitles2.show()
+		self.second_subs_frame.setGeometry(int(x), int(y), 0, 0)
+		self.second_subs_frame.show()
 
 	def render_popup(self, text, x_cursor_pos, is_line):
 		if text == '':
 			if hasattr(self, 'popup'):
-				self.popup.hide()
+				self.popup_frame.hide()
 			return
 
 		self.clearLayout('popup')
@@ -725,10 +726,10 @@ class main_class(QWidget):
 					self.popup_vbox.addWidget(ll)
 
 		self.popup_inner.adjustSize()
-		self.popup.adjustSize()
+		self.popup_frame.adjustSize()
 
-		w = self.popup.geometry().width()
-		h = self.popup.geometry().height()
+		w = self.popup_frame.geometry().width()
+		h = self.popup_frame.geometry().height()
 
 		if w > config.screen_width:
 			w = config.screen_width - 20
@@ -745,12 +746,12 @@ class main_class(QWidget):
 				x = config.screen_width - w
 
 		if config.subs_top_placement_B:
-			y = self.subtitles.height + config.subs_screen_edge_padding
+			y = self.first_subs_frame.height + config.subs_screen_edge_padding
 		else:
-			y = config.screen_height - config.subs_screen_edge_padding - self.subtitles.height - h
+			y = config.screen_height - config.subs_screen_edge_padding - self.first_subs_frame.height - h
 
-		self.popup.setGeometry(int(x), int(y), int(w), 0)
-		self.popup.show()
+		self.popup_frame.setGeometry(int(x), int(y), int(w), 0)
+		self.popup_frame.show()
 
 		QApplication.restoreOverrideCursor()
 
@@ -764,9 +765,9 @@ if __name__ == "__main__":
 
 	mpv_socket_path = sys.argv[1]
 	mpv = Mpv(mpv_socket_path)
-	sub_file = sys.argv[2]
+	subs_file_path = sys.argv[2]
 
-	subs = ''
+	subtitles_text = ''
 
 	app = QApplication(sys.argv)
 

@@ -74,7 +74,7 @@ auto_pause_min_words = 10
 auto_pause = 0
 
 # translated language is written right-to-left, e.g Hebrew/Arabic
-R2L_from_B = False
+is_native_lang_right_to_left = False
 # translation is written right-to-left, e.g Hebrew/Arabic
 R2L_to_B = False
 
@@ -185,7 +185,7 @@ style_popup = '''
 
 # for subtitles to be visible on background with similar color
 # might look ugly with some fonts
-outline_B = True
+is_subs_outlined = True
 outline_color = '#000000'
 # ~ N/2.5 == size in px; here it's 2px of outline + another ~ 3px of blur
 outline_thickness = 5
@@ -197,8 +197,8 @@ outline_bottom_padding = 2
 
 # highlighting the word under cursor
 hover_color = '#F44336'
-hover_hightlight = False	# may look ugly due to only int precision of QFontMetrics
-hover_underline = True
+is_hover_highlight = False	 # may look ugly due to only int precision of QFontMetrics
+is_hover_underline = True
 hover_underline_thickness = 5
 
 #########################################################
