@@ -467,12 +467,13 @@ class main_class(QWidget):
 		self.thread_translations.started.connect(self.obj2.main)
 		self.thread_translations.start()
 
-		# start the forms
 		self.first_subs_frame = self.create_frame(config.style_subs)
-		self.first_subs_qv_box_layout = self.create_subtitles_qv_box_layout(self.first_subs_frame)
+		self.first_subs_qv_box_layout = self.create_vertical_linear_layout(
+			self.first_subs_frame, config.subs_padding_between_lines)
 
 		self.second_subs_frame = self.create_frame(config.style_subs)
-		self.second_subs_qv_box_layout = self.create_subtitles_qv_box_layout(self.second_subs_frame)
+		self.second_subs_qv_box_layout = self.create_vertical_linear_layout(
+			self.second_subs_frame, config.subs_padding_between_lines)
 		if config.is_paused_during_translation:
 			self.second_subs_frame.enterEvent = lambda event: [mpv.pause(), setattr(config, 'block_popup', False)][0]
 			self.second_subs_frame.leaveEvent = lambda event: [mpv.resume(), setattr(config, 'block_popup', True)][
@@ -482,39 +483,33 @@ class main_class(QWidget):
 		self.popup_frame = self.create_frame(config.style_popup)
 		self.add_inner_frame_to_popup()
 
-	def clearLayout(self, layout):
-		if layout == 'subs':
-			layout = self.first_subs_qv_box_layout
-			self.first_subs_frame.hide()
-		elif layout == 'subs2':
-			layout = self.second_subs_qv_box_layout
-			self.second_subs_frame.hide()
-		elif layout == 'popup':
-			layout = self.popup_vbox
-			self.popup_frame.hide()
+	def clear_layout(self, frame: QFrame, layout: QLayout) -> None:
+		frame.hide()
+		for i in range(layout.count()):
+			item = layout.takeAt(i)
+			if not item:
+				return
 
-		if layout is not None:
-			while layout.count():
-				item = layout.takeAt(0)
-				widget = item.widget()
+			inner_layout = item.layout()
+			if inner_layout:
+				self.clear_layout(frame, inner_layout)
 
-				if widget is not None:
-					widget.deleteLater()
-				else:
-					self.clearLayout(item.layout())
+			widget = item.widget()
+			if widget:
+				widget.deleteLater()
 
-	def create_frame(self, style_sheet):
+	def create_frame(self, style_sheet) -> QFrame:
 		frame = QFrame()
 		frame.setAttribute(Qt.WA_TranslucentBackground)
 		frame.setWindowFlags(Qt.X11BypassWindowManagerHint)
 		frame.setStyleSheet(style_sheet)
 		return frame
 
-	def create_subtitles_qv_box_layout(self, subs_frame):
-		subs_qv_box_layout = QVBoxLayout(subs_frame)
-		subs_qv_box_layout.setSpacing(config.subs_padding_between_lines)
-		subs_qv_box_layout.setContentsMargins(0, 0, 0, 0)
-		return subs_qv_box_layout
+	def create_vertical_linear_layout(self, widget: QWidget, spacing: int) -> QLayout:
+		vertical_linear_layout = QVBoxLayout(widget)
+		vertical_linear_layout.setSpacing(spacing)
+		vertical_linear_layout.setContentsMargins(0, 0, 0, 0)
+		return vertical_linear_layout
 
 	def add_inner_frame_to_popup(self):
 		self.popup_inner = QFrame()
@@ -536,75 +531,78 @@ class main_class(QWidget):
 			self.first_subs_frame.setStyleSheet(config.style_subs)
 			self.second_subs_frame.setStyleSheet(config.style_subs)
 		else:
-			self.clearLayout('subs')
-			self.clearLayout('subs2')
+			self.draw_subs()
+			self.set_subs_frames_x_y_axis()
+			self.first_subs_frame.show()
+			self.second_subs_frame.show()
 
-			if hasattr(self, 'popup'):
-				self.popup_frame.hide()
+	def draw_subs(self):
+		self.clear_layout(self.first_subs_frame, self.first_subs_qv_box_layout)
+		self.clear_layout(self.second_subs_frame, self.second_subs_qv_box_layout)
 
-			# if subtitle consists of one overly long line - split into two
-			if config.split_long_lines_B and len(subtitles_text.split('\n')) == 1 and len(subtitles_text.split(' ')) > config.split_long_lines_words_min - 1:
-				subs2 = split_long_lines(subtitles_text)
-			else:
-				subs2 = subtitles_text
+		if hasattr(self, 'popup'):
+			self.popup_frame.hide()
+		# if subtitle consists of one overly long line - split into two
+		if config.split_long_lines_B and len(subtitles_text.split('\n')) == 1 and len(
+				subtitles_text.split(' ')) > config.split_long_lines_words_min - 1:
+			subs_text = split_long_lines(subtitles_text)
+		else:
+			subs_text = subtitles_text
+		subs_text = re.sub(' +', ' ', subs_text).strip()
+		##############################
+		for line in subs_text.split('\n'):
+			line2 = ' %s ' % line.strip()
+			ll = drawing_layer(line2, subs_text)
 
-			subs2 = re.sub(' +', ' ', subs2).strip()
+			hbox = QHBoxLayout()
+			hbox.setContentsMargins(0, 0, 0, 0)
+			hbox.setSpacing(0)
+			hbox.addStretch()
+			hbox.addWidget(ll)
+			hbox.addStretch()
+			self.first_subs_qv_box_layout.addLayout(hbox)
 
-			##############################
+			####################################
 
-			for line in subs2.split('\n'):
-				line2 = ' %s ' % line.strip()
-				ll = drawing_layer(line2, subs2)
+			hbox = QHBoxLayout()
+			hbox.setContentsMargins(0, 0, 0, 0)
+			hbox.setSpacing(0)
+			hbox.addStretch()
 
-				hbox = QHBoxLayout()
-				hbox.setContentsMargins(0, 0, 0, 0)
-				hbox.setSpacing(0)
-				hbox.addStretch()
-				hbox.addWidget(ll)
-				hbox.addStretch()
-				self.first_subs_qv_box_layout.addLayout(hbox)
+			if config.is_native_lang_right_to_left:
+				line2 = line2[::-1]
 
-				####################################
+			line2 += '\00'
+			word = ''
+			for smbl in line2:
+				if smbl.isalpha():
+					word += smbl
+				else:
+					if len(word):
+						if config.is_native_lang_right_to_left:
+							word = word[::-1]
 
-				hbox = QHBoxLayout()
-				hbox.setContentsMargins(0, 0, 0, 0)
-				hbox.setSpacing(0)
-				hbox.addStretch()
+						ll = events_class(word, subs_text)
+						ll.mouseHover.connect(self.render_popup)
+						ll.redraw.connect(self.render_subtitles)
 
-				if config.is_native_lang_right_to_left:
-					line2 = line2[::-1]
+						hbox.addWidget(ll)
+						word = ''
 
-				line2 += '\00'
-				word = ''
-				for smbl in line2:
-					if smbl.isalpha():
-						word += smbl
-					else:
-						if len(word):
-							if config.is_native_lang_right_to_left:
-								word = word[::-1]
+					if smbl != '\00':
+						ll = events_class(smbl, subs_text, skip=True)
+						hbox.addWidget(ll)
 
-							ll = events_class(word, subs2)
-							ll.mouseHover.connect(self.render_popup)
-							ll.redraw.connect(self.render_subtitles)
+			hbox.addStretch()
+			self.second_subs_qv_box_layout.addLayout(hbox)
 
-							hbox.addWidget(ll)
-							word = ''
-
-						if smbl != '\00':
-							ll = events_class(smbl, subs2, skip = True)
-							hbox.addWidget(ll)
-
-				hbox.addStretch()
-				self.second_subs_qv_box_layout.addLayout(hbox)
-
+	def set_subs_frames_x_y_axis(self):
 		self.first_subs_frame.adjustSize()
 		self.second_subs_frame.adjustSize()
 
 		w = self.first_subs_frame.geometry().width()
 		h = self.first_subs_frame.height = self.first_subs_frame.geometry().height()
-
-		x = (config.screen_width/2) - (w/2)
+		x = (config.screen_width / 2) - (w / 2)
 
 		if config.subs_top_placement_B:
 			y = config.subs_screen_edge_padding
@@ -612,10 +610,7 @@ class main_class(QWidget):
 			y = config.screen_height - config.subs_screen_edge_padding - h
 
 		self.first_subs_frame.setGeometry(int(x), int(y), 0, 0)
-		self.first_subs_frame.show()
-
 		self.second_subs_frame.setGeometry(int(x), int(y), 0, 0)
-		self.second_subs_frame.show()
 
 	def render_popup(self, text, x_cursor_pos, is_line):
 		if text == '':
@@ -623,7 +618,7 @@ class main_class(QWidget):
 				self.popup_frame.hide()
 			return
 
-		self.clearLayout('popup')
+		self.clear_layout(self.popup_frame, self.popup_vbox)
 
 		if is_line:
 			QApplication.setOverrideCursor(Qt.WaitCursor)
