@@ -2,17 +2,15 @@
 
 import os
 import queue
-import random
 import re
-import subprocess
 import sys
 import threading
 import time
 
 import numpy
-from PyQt5.QtCore import Qt, QThread, QObject, pyqtSignal, pyqtSlot, QSize
+from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize
 from PyQt5.QtGui import QPalette, QPaintEvent, QPainter, QPainterPath, QFontMetrics, QColor, QPen, QBrush
-from PyQt5.QtWidgets import QApplication, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QWidget
+from PyQt5.QtWidgets import QApplication, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QWidget, QLayout
 
 from data_provider.deepl import deepl
 from data_provider.dict_cc import dict_cc
@@ -25,14 +23,13 @@ from data_provider.pons import pons
 from data_provider.redensarten import redensarten
 from data_provider.reverso import reverso
 from data_provider.pronunciation import listen
+from data_provider.subtitles_data_source import SubtitlesDataSourceWorker
 from mpv import Mpv
+from ui.subtitles_view import SubtitlesView
 
 os.chdir(os.path.expanduser('~/.config/mpv/scripts/'))
 import interSubs_config as config
 
-
-def stripsd2(phrase):
-	return ''.join(e for e in phrase.strip().lower() if e == ' ' or (e.isalnum() and not e.isdigit())).strip()
 
 def r2l(l):
 	l2 = ''
@@ -71,96 +68,6 @@ def split_long_lines(line, chunks = 2, max_symbols_per_line = False):
 
 		return '\n'.join(new_lines)
 
-def dir2(name):
-	print('\n'.join(dir( name )))
-	exit()
-
-class SubtitlesRenderer(QObject):
-	on_visibility_changed = pyqtSignal(bool, bool)
-
-	@pyqtSlot()
-	def render(self):
-		global subtitles_text
-
-		is_hidden = False
-		auto_pause_2_ind = 0
-		last_updated = time.time()
-
-		i = 0
-		while 1:
-			time.sleep(config.update_time)
-
-			# hide subs when mpv isn't in focus or in fullscreen
-			if i * config.update_time > config.focus_checking_time - 0.0001:
-				while 'mpv' not in subprocess.getoutput('xdotool getwindowfocus getwindowname') \
-						or (config.is_visible_in_fullscreen_only and not mpv.is_in_fullscreen()) \
-						or (os.path.exists(mpv_socket_path + '_hide')):
-					if not is_hidden:
-						self.on_visibility_changed.emit(True, False)
-						is_hidden = True
-					else:
-						time.sleep(config.focus_checking_time)
-				i = 0
-			i += 1
-
-			if is_hidden:
-				is_hidden = False
-				self.on_visibility_changed.emit(False, False)
-				continue
-
-			try:
-				tmp_file_subs = open(subs_file_path).read()
-			except:
-				continue
-			
-			# tmp hack
-			# if config.R2L_from_B:
-			# 	tmp_file_subs = r2l(tmp_file_subs.strip())
-
-			if config.extend_subs_duration2max_B and not len(tmp_file_subs):
-				if not config.extend_subs_duration_limit_sec:
-					continue
-				if config.extend_subs_duration_limit_sec > time.time() - last_updated:
-					continue
-
-			last_updated = time.time()
-
-			# automatically switch into Hebrew if it's detected
-			if config.lang_from != 'he' and config.lang_from != 'iw' and any((c in set('קראטוןםפשדגכעיחלךףזסבהנמצתץ')) for c in tmp_file_subs):
-				config.lang_from = 'he'
-
-				frf = random.choice(config.he_fonts)
-				config.style_subs = re.sub('font-family: ".*?";', lambda ff: 'font-family: "%s";' % frf, config.style_subs, flags = re.I)
-
-				config.is_native_lang_right_to_left = True
-				config.translation_function_names = config.translation_function_names_2
-				config.listen_via = 'forvo'
-
-				os.system('notify-send -i none -t 1111 "He"')
-				os.system('notify-send -i none -t 1111 "%s"' % str(frf))
-
-				self.on_visibility_changed.emit(False, True)
-
-			while tmp_file_subs != subtitles_text:
-				if config.auto_pause == 2:
-					if not auto_pause_2_ind and len(re.sub(' +', ' ', stripsd2(subtitles_text.replace('\n', ' '))).split(' ')) > config.auto_pause_min_words - 1 and not mpv.is_paused():
-						mpv.pause()
-						auto_pause_2_ind = 1
-
-					if auto_pause_2_ind and mpv.is_paused():
-						break
-
-					auto_pause_2_ind = 0
-
-				subtitles_text = tmp_file_subs
-
-				if config.auto_pause == 1:
-					if len(re.sub(' +', ' ', stripsd2(subtitles_text.replace('\n', ' '))).split(' ')) > config.auto_pause_min_words - 1:
-						mpv.pause()
-
-				self.on_visibility_changed.emit(False, False)
-
-				break
 
 class thread_translations(QObject):
 	get_translations = pyqtSignal(str, int, bool)
@@ -202,8 +109,8 @@ class thread_translations(QObject):
 
 # drawing layer
 # because can't calculate outline with precision
-class drawing_layer(QLabel):
-	def __init__(self, line, subs, parent=None):
+class CustomLabel(QLabel):
+	def __init__(self, line, parent=None):
 		super().__init__(None)
 		self.line = line
 		self.setStyleSheet(config.style_subs)
@@ -451,35 +358,6 @@ class main_class(QWidget):
 	def __init__(self):
 		super().__init__()
 
-		self.subs_renderer_thread = QThread()
-
-		self.subs_renderer = SubtitlesRenderer()
-		self.subs_renderer.on_visibility_changed.connect(self.render_subtitles)
-		self.subs_renderer.moveToThread(self.subs_renderer_thread)
-
-		self.subs_renderer_thread.started.connect(self.subs_renderer.render)
-		self.subs_renderer_thread.start()
-
-		self.thread_translations = QThread()
-		self.obj2 = thread_translations()
-		self.obj2.get_translations.connect(self.render_popup)
-		self.obj2.moveToThread(self.thread_translations)
-		self.thread_translations.started.connect(self.obj2.main)
-		self.thread_translations.start()
-
-		self.first_subs_frame = self.create_frame(config.style_subs)
-		self.first_subs_qv_box_layout = self.create_vertical_linear_layout(
-			self.first_subs_frame, config.subs_padding_between_lines)
-
-		self.second_subs_frame = self.create_frame(config.style_subs)
-		self.second_subs_qv_box_layout = self.create_vertical_linear_layout(
-			self.second_subs_frame, config.subs_padding_between_lines)
-		if config.is_paused_during_translation:
-			self.second_subs_frame.enterEvent = lambda event: [mpv.pause(), setattr(config, 'block_popup', False)][0]
-			self.second_subs_frame.leaveEvent = lambda event: [mpv.resume(), setattr(config, 'block_popup', True)][
-				0] if not config.avoid_resuming else \
-			[setattr(config, 'avoid_resuming', False), setattr(config, 'block_popup', True)][0]
-
 		self.popup_frame = self.create_frame(config.style_popup)
 		self.add_inner_frame_to_popup()
 
@@ -505,12 +383,6 @@ class main_class(QWidget):
 		frame.setStyleSheet(style_sheet)
 		return frame
 
-	def create_vertical_linear_layout(self, widget: QWidget, spacing: int) -> QLayout:
-		vertical_linear_layout = QVBoxLayout(widget)
-		vertical_linear_layout.setSpacing(spacing)
-		vertical_linear_layout.setContentsMargins(0, 0, 0, 0)
-		return vertical_linear_layout
-
 	def add_inner_frame_to_popup(self):
 		self.popup_inner = QFrame()
 		outer_box = QVBoxLayout(self.popup_frame)
@@ -518,99 +390,6 @@ class main_class(QWidget):
 
 		self.popup_vbox = QVBoxLayout(self.popup_inner)
 		self.popup_vbox.setSpacing(0)
-
-	def render_subtitles(self, is_hidden=False, redraw = False):
-		if is_hidden or not len(subtitles_text):
-			try:
-				self.first_subs_frame.hide()
-				self.second_subs_frame.hide()
-			finally:
-				return
-
-		if redraw:
-			self.first_subs_frame.setStyleSheet(config.style_subs)
-			self.second_subs_frame.setStyleSheet(config.style_subs)
-		else:
-			self.draw_subs()
-			self.set_subs_frames_x_y_axis()
-			self.first_subs_frame.show()
-			self.second_subs_frame.show()
-
-	def draw_subs(self):
-		self.clear_layout(self.first_subs_frame, self.first_subs_qv_box_layout)
-		self.clear_layout(self.second_subs_frame, self.second_subs_qv_box_layout)
-
-		if hasattr(self, 'popup'):
-			self.popup_frame.hide()
-		# if subtitle consists of one overly long line - split into two
-		if config.split_long_lines_B and len(subtitles_text.split('\n')) == 1 and len(
-				subtitles_text.split(' ')) > config.split_long_lines_words_min - 1:
-			subs_text = split_long_lines(subtitles_text)
-		else:
-			subs_text = subtitles_text
-		subs_text = re.sub(' +', ' ', subs_text).strip()
-		##############################
-		for line in subs_text.split('\n'):
-			line2 = ' %s ' % line.strip()
-			ll = drawing_layer(line2, subs_text)
-
-			hbox = QHBoxLayout()
-			hbox.setContentsMargins(0, 0, 0, 0)
-			hbox.setSpacing(0)
-			hbox.addStretch()
-			hbox.addWidget(ll)
-			hbox.addStretch()
-			self.first_subs_qv_box_layout.addLayout(hbox)
-
-			####################################
-
-			hbox = QHBoxLayout()
-			hbox.setContentsMargins(0, 0, 0, 0)
-			hbox.setSpacing(0)
-			hbox.addStretch()
-
-			if config.is_native_lang_right_to_left:
-				line2 = line2[::-1]
-
-			line2 += '\00'
-			word = ''
-			for smbl in line2:
-				if smbl.isalpha():
-					word += smbl
-				else:
-					if len(word):
-						if config.is_native_lang_right_to_left:
-							word = word[::-1]
-
-						ll = events_class(word, subs_text)
-						ll.mouseHover.connect(self.render_popup)
-						ll.redraw.connect(self.render_subtitles)
-
-						hbox.addWidget(ll)
-						word = ''
-
-					if smbl != '\00':
-						ll = events_class(smbl, subs_text, skip=True)
-						hbox.addWidget(ll)
-
-			hbox.addStretch()
-			self.second_subs_qv_box_layout.addLayout(hbox)
-
-	def set_subs_frames_x_y_axis(self):
-		self.first_subs_frame.adjustSize()
-		self.second_subs_frame.adjustSize()
-
-		w = self.first_subs_frame.geometry().width()
-		h = self.first_subs_frame.height = self.first_subs_frame.geometry().height()
-		x = (config.screen_width / 2) - (w / 2)
-
-		if config.subs_top_placement_B:
-			y = config.subs_screen_edge_padding
-		else:
-			y = config.screen_height - config.subs_screen_edge_padding - h
-
-		self.first_subs_frame.setGeometry(int(x), int(y), 0, 0)
-		self.second_subs_frame.setGeometry(int(x), int(y), 0, 0)
 
 	def render_popup(self, text, x_cursor_pos, is_line):
 		if text == '':
@@ -776,4 +555,9 @@ if __name__ == "__main__":
 	config.screen_height = app.primaryScreen().size().height()
 
 	form = main_class()
+	subs_view = SubtitlesView(config)
+	subs_data_source_worker = SubtitlesDataSourceWorker(subs_file_path)
+	subs_data_source_worker.on_subtitles_changed.connect(subs_view.submit_subs)
+	subs_data_source_worker.start()
+
 	app.exec_()
