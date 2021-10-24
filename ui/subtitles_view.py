@@ -1,13 +1,7 @@
-from PyQt5.QtCore import Qt
-from PyQt5.QtWidgets import QLabel, QHBoxLayout, QFrame, QWidget, QVBoxLayout, QBoxLayout
+from PyQt5.QtCore import QEvent
+from PyQt5.QtWidgets import QLabel, QHBoxLayout, QWidget, QVBoxLayout, QBoxLayout
 
-
-def create_frame(style_sheet: str) -> QFrame:
-    frame = QFrame()
-    frame.setAttribute(Qt.WA_TranslucentBackground)
-    frame.setWindowFlags(Qt.X11BypassWindowManagerHint)
-    frame.setStyleSheet(style_sheet)
-    return frame
+from ui.util import create_frame, clear_layout
 
 
 def create_vertical_linear_layout(parent: QWidget, spacing: int) -> QVBoxLayout:
@@ -43,23 +37,23 @@ class SubtitlesLine:
         self.line_layout = create_horizontal_linear_layout()
         parent_layout.addLayout(self.line_layout)
 
+        self.mouse_enter_event_handler = lambda text, event: None
+
     def set_text(self, text: str):
-        self.clear_text()
+        clear_layout(self.line_layout)
         for word in text.split():
             label = QLabel(word)
+            label.setMouseTracking(True)
+            label.enterEvent = self.enclose_text_into_mouse_enter_event_handler(word)
             self.line_layout.addWidget(label)
 
-    def clear_text(self):
-        self.line_layout.parentWidget().hide()
+    def enclose_text_into_mouse_enter_event_handler(self, text: str):
+        def enter_event(event: QEvent):
+            self.mouse_enter_event_handler(text, event)
+        return enter_event
 
-        while not self.line_layout.isEmpty():
-            item = self.line_layout.takeAt(0)
-            if not item:
-                return
-
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
+    def register_mouse_enter_event_handler(self, handler) -> None:
+        self.mouse_enter_event_handler = handler
 
 
 class SubtitlesView:
@@ -79,6 +73,10 @@ class SubtitlesView:
 
         self.set_subs_frames_x_y_axis()
         self.show()
+
+    def register_text_hover_event_handler(self, handler) -> None:
+        self.first_subs_line.register_mouse_enter_event_handler(handler)
+        self.second_subs_line.register_mouse_enter_event_handler(handler)
 
     def show(self):
         self.frame.show()
