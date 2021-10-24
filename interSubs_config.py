@@ -1,5 +1,10 @@
 #! /usr/bin/env python
+import queue
 
+avoid_resuming = False
+block_popup = False
+scroll = {}
+queue_to_translate = queue.Queue()
 # v. 2.9
 # Interactive subtitles for `mpv` for language learners.
 
@@ -76,7 +81,7 @@ auto_pause = 0
 # translated language is written right-to-left, e.g Hebrew/Arabic
 is_native_lang_right_to_left = False
 # translation is written right-to-left, e.g Hebrew/Arabic
-R2L_to_B = False
+is_definition_lang_right_to_left = False
 
 #########################################################
 #########################################################

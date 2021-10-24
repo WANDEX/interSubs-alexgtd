@@ -1,7 +1,6 @@
 #! /usr/bin/env python
 
 import os
-import queue
 import re
 import sys
 import threading
@@ -10,7 +9,7 @@ import time
 import numpy
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize
 from PyQt5.QtGui import QPalette, QPaintEvent, QPainter, QPainterPath, QFontMetrics, QColor, QPen, QBrush
-from PyQt5.QtWidgets import QApplication, QFrame, QVBoxLayout, QHBoxLayout, QLabel, QSizePolicy, QWidget, QLayout
+from PyQt5.QtWidgets import QApplication, QLabel
 
 from data_provider.deepl import deepl
 from data_provider.dict_cc import dict_cc
@@ -25,6 +24,7 @@ from data_provider.reverso import reverso
 from data_provider.pronunciation import listen
 from data_provider.subtitles_data_source import SubtitlesDataSourceWorker
 from mpv import Mpv
+from ui.popup_view import PopupView
 from ui.subtitles_view import SubtitlesView
 
 os.chdir(os.path.expanduser('~/.config/mpv/scripts/'))
@@ -354,182 +354,6 @@ class events_class(QLabel):
 			config.scroll[self.word] = 1
 		self.mouseHover.emit(self.word, event.globalX(), False)
 
-class main_class(QWidget):
-	def __init__(self):
-		super().__init__()
-
-		self.popup_frame = self.create_frame(config.style_popup)
-		self.add_inner_frame_to_popup()
-
-	def clear_layout(self, frame: QFrame, layout: QLayout) -> None:
-		frame.hide()
-		for i in range(layout.count()):
-			item = layout.takeAt(i)
-			if not item:
-				return
-
-			inner_layout = item.layout()
-			if inner_layout:
-				self.clear_layout(frame, inner_layout)
-
-			widget = item.widget()
-			if widget:
-				widget.deleteLater()
-
-	def create_frame(self, style_sheet) -> QFrame:
-		frame = QFrame()
-		frame.setAttribute(Qt.WA_TranslucentBackground)
-		frame.setWindowFlags(Qt.X11BypassWindowManagerHint)
-		frame.setStyleSheet(style_sheet)
-		return frame
-
-	def add_inner_frame_to_popup(self):
-		self.popup_inner = QFrame()
-		outer_box = QVBoxLayout(self.popup_frame)
-		outer_box.addWidget(self.popup_inner)
-
-		self.popup_vbox = QVBoxLayout(self.popup_inner)
-		self.popup_vbox.setSpacing(0)
-
-	def render_popup(self, text, x_cursor_pos, is_line):
-		if text == '':
-			if hasattr(self, 'popup'):
-				self.popup_frame.hide()
-			return
-
-		self.clear_layout(self.popup_frame, self.popup_vbox)
-
-		if is_line:
-			QApplication.setOverrideCursor(Qt.WaitCursor)
-			
-			line = globals()[config.translation_function_name_full_sentence](text)
-			if config.translation_function_name_full_sentence == 'google':
-				try:
-					line = line[0][0][0].strip()
-				except:
-					line = 'Google translation failed.'
-			
-			if config.split_long_lines_B and len(line.split('\n')) == 1 and len(line.split(' ')) > config.split_long_lines_words_min - 1:
-				line = split_long_lines(line)
-
-			ll = QLabel(line)
-			ll.setObjectName("first_line")
-			self.popup_vbox.addWidget(ll)
-		else:
-			word = text
-
-			for translation_function_name_i, translation_function_name in enumerate(config.translation_function_names):
-				pairs, word_descr = globals()[translation_function_name](word)
-
-				if not len(pairs):
-					pairs = [['', '[Not found]']]
-					#return
-
-				# ~pairs = [ [ str(i) + ' ' + pair[0], pair[1] ] for i, pair in enumerate(pairs) ]
-
-				if word in config.scroll:
-					if len(pairs[config.scroll[word]:]) > config.number_of_translations:
-						pairs = pairs[config.scroll[word]:]
-					else:
-						pairs = pairs[-config.number_of_translations:]
-						if len(config.translation_function_names) == 1:
-							config.scroll[word] -= 1
-
-				for i1, pair in enumerate(pairs):
-					if i1 == config.number_of_translations:
-						break
-
-					if config.split_long_lines_in_popup_B:
-						pair[0] = split_long_lines(pair[0], max_symbols_per_line = config.split_long_lines_in_popup_symbols_min)
-						pair[1] = split_long_lines(pair[1], max_symbols_per_line = config.split_long_lines_in_popup_symbols_min)
-
-					if pair[0] == '-':
-						pair[0] = ''
-					if pair[1] == '-':
-						pair[1] = ''
-
-					# ~if config.R2L_from_B:
-						# ~pair[0] = pair[0][::-1]
-					# ~if config.R2L_to_B:
-						# ~pair[1] = pair[1][::-1]
-
-					if pair[0] != '':
-						# to emphasize the exact form of the word
-						# to ignore case on input and match it on output
-						chnks = re.split(word, pair[0], flags = re.I)
-						exct_words = re.findall(word, pair[0], flags = re.I)
-
-						hbox = QHBoxLayout()
-						hbox.setContentsMargins(0, 0, 0, 0)
-
-						for i2, chnk in enumerate(chnks):
-							if len(chnk):
-								ll = QLabel(chnk)
-								ll.setObjectName("first_line")
-								hbox.addWidget(ll)
-							if i2 + 1 < len(chnks):
-								ll = QLabel(exct_words[i2])
-								ll.setObjectName("first_line_emphasize_word")
-								hbox.addWidget(ll)
-
-						# filling the rest of the line with empty bg
-						ll = QLabel()
-						ll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
-						hbox.addWidget(ll)
-
-						self.popup_vbox.addLayout(hbox)
-
-					if pair[1] != '':
-						ll = QLabel(pair[1])
-						ll.setObjectName("second_line")
-						self.popup_vbox.addWidget(ll)
-
-						# padding
-						ll = QLabel()
-						ll.setStyleSheet("font-size: 6px;")
-						self.popup_vbox.addWidget(ll)
-
-				if len(word_descr[0]):
-					ll = QLabel(word_descr[0])
-					ll.setProperty("morphology", word_descr[1])
-					ll.setAlignment(Qt.AlignRight)
-					self.popup_vbox.addWidget(ll)
-
-				# delimiter between dictionaries
-				if translation_function_name_i + 1 < len(config.translation_function_names):
-					ll = QLabel()
-					ll.setObjectName("delimiter")
-					self.popup_vbox.addWidget(ll)
-
-		self.popup_inner.adjustSize()
-		self.popup_frame.adjustSize()
-
-		w = self.popup_frame.geometry().width()
-		h = self.popup_frame.geometry().height()
-
-		if w > config.screen_width:
-			w = config.screen_width - 20
-
-		if not is_line:
-			if w < config.screen_width / 3:
-				w = config.screen_width / 3
-
-		if x_cursor_pos == -1:
-			x = (config.screen_width/2) - (w/2)
-		else:
-			x = x_cursor_pos - w/5
-			if x+w > config.screen_width:
-				x = config.screen_width - w
-
-		if config.subs_top_placement_B:
-			y = self.first_subs_frame.height + config.subs_screen_edge_padding
-		else:
-			y = config.screen_height - config.subs_screen_edge_padding - self.first_subs_frame.height - h
-
-		self.popup_frame.setGeometry(int(x), int(y), int(w), 0)
-		self.popup_frame.show()
-
-		QApplication.restoreOverrideCursor()
 
 if __name__ == "__main__":
 	print('[py part] Starting interSubs ...')
@@ -547,16 +371,15 @@ if __name__ == "__main__":
 
 	app = QApplication(sys.argv)
 
-	config.avoid_resuming = False
-	config.block_popup = False
-	config.scroll = {}
-	config.queue_to_translate = queue.Queue()
 	config.screen_width = app.primaryScreen().size().width()
 	config.screen_height = app.primaryScreen().size().height()
 
-	form = main_class()
 	subs_view = SubtitlesView(config)
+	popup_view = PopupView(config)
+	subs_view.register_text_hover_event_handler(popup_view.pop)
+
 	subs_data_source_worker = SubtitlesDataSourceWorker(subs_file_path)
+	subs_data_source_worker.on_subtitles_changed.connect(popup_view.hide)
 	subs_data_source_worker.on_subtitles_changed.connect(subs_view.submit_subs)
 	subs_data_source_worker.start()
 
