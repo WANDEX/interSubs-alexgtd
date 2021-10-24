@@ -1,3 +1,5 @@
+from typing import Callable, Tuple
+
 from PyQt5.QtCore import QEvent
 from PyQt5.QtWidgets import QLabel, QHBoxLayout, QWidget, QVBoxLayout, QBoxLayout
 
@@ -19,7 +21,7 @@ def create_horizontal_linear_layout() -> QHBoxLayout:
     return horizontal_linear_layout
 
 
-def split_string_by_words_limit(text: str, limit: int) -> tuple:
+def split_string_by_words_limit(text: str, limit: int) -> Tuple[str, str]:
     result = text, ""
     words_count_to_split = 4
     words_list = text.split()
@@ -37,9 +39,9 @@ class SubtitlesLine:
         self.line_layout = create_horizontal_linear_layout()
         parent_layout.addLayout(self.line_layout)
 
-        self.mouse_enter_event_handler = lambda text, event: None
+        self.mouse_enter_event_handler: Callable[[str, QEvent], None] = lambda text, event: None
 
-    def set_text(self, text: str):
+    def set_text(self, text: str) -> None:
         clear_layout(self.line_layout)
         for word in text.split():
             label = QLabel(word)
@@ -47,12 +49,12 @@ class SubtitlesLine:
             label.enterEvent = self.enclose_text_into_mouse_enter_event_handler(word)
             self.line_layout.addWidget(label)
 
-    def enclose_text_into_mouse_enter_event_handler(self, text: str):
+    def enclose_text_into_mouse_enter_event_handler(self, text: str) -> Callable[[QEvent], None]:
         def enter_event(event: QEvent):
             self.mouse_enter_event_handler(text, event)
         return enter_event
 
-    def register_mouse_enter_event_handler(self, handler) -> None:
+    def register_mouse_enter_event_handler(self, handler: Callable[[str, QEvent], None]) -> None:
         self.mouse_enter_event_handler = handler
 
 
@@ -65,7 +67,7 @@ class SubtitlesView:
         self.first_subs_line = SubtitlesLine(self.outer_layout)
         self.second_subs_line = SubtitlesLine(self.outer_layout)
 
-    def submit_subs(self, subs_text: str):
+    def submit_subs(self, subs_text: str) -> None:
         subs_lines = split_string_by_words_limit(subs_text, 5)
 
         self.first_subs_line.set_text(subs_lines[0])
@@ -74,17 +76,17 @@ class SubtitlesView:
         self.set_subs_frames_x_y_axis()
         self.show()
 
-    def register_text_hover_event_handler(self, handler) -> None:
+    def register_text_hover_event_handler(self, handler: Callable[[str, QEvent], None]) -> None:
         self.first_subs_line.register_mouse_enter_event_handler(handler)
         self.second_subs_line.register_mouse_enter_event_handler(handler)
 
-    def show(self):
+    def show(self) -> None:
         self.frame.show()
 
-    def hide(self):
+    def hide(self) -> None:
         self.frame.hide()
 
-    def set_subs_frames_x_y_axis(self):
+    def set_subs_frames_x_y_axis(self) -> None:
         self.frame.adjustSize()
 
         w = self.frame.geometry().width()
