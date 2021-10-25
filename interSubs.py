@@ -6,7 +6,6 @@ import sys
 import threading
 import time
 
-import numpy
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot, QSize
 from PyQt5.QtGui import QPalette, QPaintEvent, QPainter, QPainterPath, QFontMetrics, QColor, QPen, QBrush
 from PyQt5.QtWidgets import QApplication, QLabel
@@ -29,44 +28,6 @@ from ui.subtitles_view import SubtitlesView
 
 os.chdir(os.path.expanduser('~/.config/mpv/scripts/'))
 import interSubs_config as config
-
-
-def r2l(l):
-	l2 = ''
-
-	try:
-		l2 = re.findall('(?!%)\W+$', l)[0][::-1]
-	except:
-		pass
-
-	l2 += re.sub('^\W+|(?!%)\W+$', '', l)
-
-	try:
-		l2 += re.findall('^\W+', l)[0][::-1]
-	except:
-		pass
-	
-	return l2
-
-def split_long_lines(line, chunks = 2, max_symbols_per_line = False):
-	if max_symbols_per_line:
-		chunks = 0
-		while 1:
-			chunks += 1
-			new_lines = []
-			for i in range(chunks):
-				new_line = ' '.join(numpy.array_split(line.split(' '), chunks)[i])
-				new_lines.append(new_line)
-
-			if len(max(new_lines, key = len)) <= max_symbols_per_line:
-				return '\n'.join(new_lines)
-	else:
-		new_lines = []
-		for i in range(chunks):
-			new_line = ' '.join(numpy.array_split(line.split(' '), chunks)[i])
-			new_lines.append(new_line)
-
-		return '\n'.join(new_lines)
 
 
 class thread_translations(QObject):
@@ -342,18 +303,11 @@ class events_class(QLabel):
 
 
 if __name__ == "__main__":
-	print('[py part] Starting interSubs ...')
-
-	try:
-		os.mkdir('urls')
-	except:
-		pass
+	print("[python] Starting interSubs ...")
 
 	mpv_socket_path = sys.argv[1]
 	mpv = Mpv(mpv_socket_path)
 	subs_file_path = sys.argv[2]
-
-	subtitles_text = ''
 
 	app = QApplication(sys.argv)
 
