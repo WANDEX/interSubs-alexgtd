@@ -107,29 +107,37 @@ class thread_translations(QObject):
 
 			self.get_translations.emit(word, globalX, False)
 
-# drawing layer
-# because can't calculate outline with precision
-class CustomLabel(QLabel):
-	def __init__(self, line, parent=None):
+
+class OutlinedLabel(QLabel):
+	def __init__(self, text: str, config):
 		super().__init__(None)
-		self.line = line
-		self.setStyleSheet(config.style_subs)
-		self.psuedo_line = 0
+		self.cfg = config
+		self.text = text
 
-	def draw_text_n_outline(self, painter: QPainter, x, y, outline_width, outline_blur, text):
-		outline_color = QColor(config.outline_color)
+	def draw_text_and_outline(self) -> None:
+		x = 0
+		y = 0
+		y += self.fontMetrics().ascent()
+		y = y + self.cfg.outline_top_padding - self.cfg.outline_bottom_padding
 
-		font = self.font()
-		text_path = QPainterPath()
-		if config.is_native_lang_right_to_left:
-			text_path.addText(x, y, font, ' ' + r2l(text.strip()) + ' ')
-		else:
-			text_path.addText(x, y, font, text)
+		text = self.text
 
-		# draw blur
-		range_width = range(outline_width, outline_width + outline_blur)
-		# ~range_width = range(outline_width + outline_blur, outline_width, -1)
+		painter = QPainter(self)
+		painter_text_path = self.prepare_text(text, x, y)
+		outline_color = QColor(self.cfg.outline_color)
+		outline_width = self.cfg.outline_thickness
 
+		self.draw_blur(painter, painter_text_path, outline_color, outline_width)
+		self.draw_outline(painter, painter_text_path, outline_color, outline_width)
+		self.draw_text(painter, text, x, y)
+
+	def prepare_text(self, text: str, x: int, y: int) -> QPainterPath:
+		text_painter_path = QPainterPath()
+		text_painter_path.addText(x, y, self.font(), text)
+		return text_painter_path
+
+	def draw_blur(self, painter: QPainter, text_path: QPainterPath, outline_color: QColor, outline_width: int) -> None:
+		range_width = range(outline_width, outline_width + self.cfg.outline_blur)
 		for width in range_width:
 			if width == min(range_width):
 				alpha = 200
@@ -144,51 +152,29 @@ class CustomLabel(QLabel):
 			painter.setPen(blur_pen)
 			painter.drawPath(text_path)
 
-		# draw outline
+	def draw_outline(self, painter: QPainter, text_path: QPainterPath, outline_color: QColor, outline_width: int) -> None:
 		outline_color = QColor(outline_color.red(), outline_color.green(), outline_color.blue(), 255)
 		outline_brush = QBrush(outline_color, Qt.SolidPattern)
 		outline_pen = QPen(outline_brush, outline_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
-
 		painter.setPen(outline_pen)
 		painter.drawPath(text_path)
 
-		# draw text
+	def draw_text(self, painter: QPainter, text: str, x: int, y: int) -> None:
 		color = self.palette().color(QPalette.Text)
 		painter.setPen(color)
 		painter.drawText(x, y, text)
 
-	if config.is_subs_outlined:
-		def paintEvent(self, evt: QPaintEvent):
-			if not self.psuedo_line:
-				self.psuedo_line = 1
-				return
+	def paintEvent(self, evt: QPaintEvent):
+		self.draw_text_and_outline()
 
-			x = y = 0
-			y += self.fontMetrics().ascent()
-			painter = QPainter(self)
+	def resizeEvent(self, *args):
+		self.setFixedSize(
+			self.fontMetrics().width(self.text),
+			self.fontMetrics().height() + self.cfg.outline_bottom_padding + self.cfg.outline_top_padding
+		)
 
-			self.draw_text_n_outline(
-				painter,
-				x,
-				y + config.outline_top_padding - config.outline_bottom_padding,
-				config.outline_thickness,
-				config.outline_blur,
-				text = self.line
-				)
-
-		def resizeEvent(self, *args):
-			self.setFixedSize(
-				self.fontMetrics().width(self.line),
-				self.fontMetrics().height() +
-					config.outline_bottom_padding +
-					config.outline_top_padding
-				)
-
-		def sizeHint(self):
-			return QSize(
-				self.fontMetrics().width(self.line),
-				self.fontMetrics().height()
-				)
+	def sizeHint(self):
+		return QSize(self.fontMetrics().width(self.text), self.fontMetrics().height())
 
 class events_class(QLabel):
 	mouseHover = pyqtSignal(str, int, bool)
