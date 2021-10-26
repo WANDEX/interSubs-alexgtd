@@ -61,11 +61,12 @@ class events_class(QLabel):
 	mouseHover = pyqtSignal(str, int, bool)
 	redraw = pyqtSignal(bool, bool)
 
-	def __init__(self, word, subs, skip = False, parent=None):
+	def __init__(self, word, subs, mpv, skip = False, parent=None):
 		super().__init__(word)
 		self.setMouseTracking(True)
 		self.word = word
 		self.subs = subs
+		self.mpv = mpv
 		self.skip = skip
 		self.is_highlighting = False
 
@@ -157,7 +158,7 @@ class events_class(QLabel):
 			config.auto_pause = 0
 		else:
 			config.auto_pause += 1
-		mpv.show_text('auto_pause: %d' % config.auto_pause)
+		self.mpv.show_text('auto_pause: %d' % config.auto_pause)
 
 	def f_listen(self, event):
 		listen(self.word, config.listen_via)
@@ -165,38 +166,38 @@ class events_class(QLabel):
 	@pyqtSlot()
 	def f_subs_screen_edge_padding_decrease(self, event):
 		config.subs_screen_edge_padding -= 5
-		mpv.show_text('subs_screen_edge_padding: %d' % config.subs_screen_edge_padding)
+		self.mpv.show_text('subs_screen_edge_padding: %d' % config.subs_screen_edge_padding)
 		self.redraw.emit(False, True)
 
 	@pyqtSlot()
 	def f_subs_screen_edge_padding_increase(self, event):
 		config.subs_screen_edge_padding += 5
-		mpv.show_text('subs_screen_edge_padding: %d' % config.subs_screen_edge_padding)
+		self.mpv.show_text('subs_screen_edge_padding: %d' % config.subs_screen_edge_padding)
 		self.redraw.emit(False, True)
 
 	@pyqtSlot()
 	def f_font_size_decrease(self, event):
-		config.style_subs = re.sub('font-size: (\d+)px;', lambda size: [ 'font-size: %dpx;' % ( int(size.group(1)) - 1 ), mpv.show_text('font: %s' % size.group(1))][0], config.style_subs, flags = re.I)
+		config.style_subs = re.sub('font-size: (\d+)px;', lambda size: [ 'font-size: %dpx;' % ( int(size.group(1)) - 1 ), self.mpv.show_text('font: %s' % size.group(1))][0], config.style_subs, flags = re.I)
 		self.redraw.emit(False, True)
 
 	@pyqtSlot()
 	def f_font_size_increase(self, event):
-		config.style_subs = re.sub('font-size: (\d+)px;', lambda size: [ 'font-size: %dpx;' % ( int(size.group(1)) + 1 ), mpv.show_text('font: %s' % size.group(1))][0], config.style_subs, flags = re.I)
+		config.style_subs = re.sub('font-size: (\d+)px;', lambda size: [ 'font-size: %dpx;' % ( int(size.group(1)) + 1 ), self.mpv.show_text('font: %s' % size.group(1))][0], config.style_subs, flags = re.I)
 		self.redraw.emit(False, True)
 
 	def f_auto_pause_min_words_decrease(self, event):
 		config.auto_pause_min_words -= 1
-		mpv.show_text('auto_pause_min_words: %d' % config.auto_pause_min_words)
+		self.mpv.show_text('auto_pause_min_words: %d' % config.auto_pause_min_words)
 
 	def f_auto_pause_min_words_increase(self, event):
 		config.auto_pause_min_words += 1
-		mpv.show_text('auto_pause_min_words: %d' % config.auto_pause_min_words)
+		self.mpv.show_text('auto_pause_min_words: %d' % config.auto_pause_min_words)
 
 	# f_deepl_translation -> f_translation_full_sentence
 	@pyqtSlot()
 	def f_deepl_translation(self, event):
 		self.mouseHover.emit(self.subs , event.globalX(), True)
-	
+
 	@pyqtSlot()
 	def f_translation_full_sentence(self, event):
 		self.mouseHover.emit(self.subs , event.globalX(), True)
@@ -222,7 +223,7 @@ class events_class(QLabel):
 		self.mouseHover.emit(self.word, event.globalX(), False)
 
 
-if __name__ == "__main__":
+def main():
 	print("[python] Starting interSubs ...")
 
 	mpv_socket_path = sys.argv[1]
@@ -231,11 +232,12 @@ if __name__ == "__main__":
 
 	app = QApplication(sys.argv)
 
-	config.screen_width = app.primaryScreen().size().width()
-	config.screen_height = app.primaryScreen().size().height()
+	cfg = config
+	cfg.screen_width = app.primaryScreen().size().width()
+	cfg.screen_height = app.primaryScreen().size().height()
 
-	subs_view = SubtitlesView(config)
-	popup_view = PopupView(config)
+	subs_view = SubtitlesView(cfg)
+	popup_view = PopupView(cfg)
 	subs_view.register_text_hover_event_handler(popup_view.pop)
 
 	subs_data_source_worker = SubtitlesDataSourceWorker(subs_file_path)
@@ -244,3 +246,7 @@ if __name__ == "__main__":
 	subs_data_source_worker.start()
 
 	app.exec_()
+
+
+if __name__ == "__main__":
+	main()
