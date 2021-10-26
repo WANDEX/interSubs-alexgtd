@@ -10,24 +10,12 @@ from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot
 from PyQt5.QtGui import QPaintEvent, QPainter, QFontMetrics, QColor, QPen, QBrush
 from PyQt5.QtWidgets import QApplication, QLabel
 
-from data_provider.deepl import deepl
-from data_provider.dict_cc import dict_cc
-from data_provider.google_translate import google
-from data_provider.leo import leo
-from data_provider.linguee import linguee
-from data_provider.morfix import morfix
-from data_provider.offline_dictionary import tab_divided_dict
-from data_provider.pons import pons
-from data_provider.redensarten import redensarten
-from data_provider.reverso import reverso
+import config
 from data_provider.pronunciation import listen
 from data_provider.subtitles_data_source import SubtitlesDataSourceWorker
 from mpv import Mpv
 from ui.popup_view import PopupView
 from ui.subtitles_view import SubtitlesView
-
-os.chdir(os.path.expanduser('~/.config/mpv/scripts/'))
-import interSubs_config as config
 
 
 class thread_translations(QObject):

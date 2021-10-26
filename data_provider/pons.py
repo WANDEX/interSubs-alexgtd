@@ -5,7 +5,7 @@ from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 
-import interSubs_config as config
+import config
 
 pons_combos = ['enes', 'enfr', 'deen', 'enpl', 'ensl', 'defr', 'dees', 'deru', 'depl', 'desl', 'deit', 'dept', 'detr',
                'deel', 'dela', 'espl', 'frpl', 'itpl', 'plru', 'essl', 'frsl', 'itsl', 'enit', 'enpt', 'enru', 'espt',

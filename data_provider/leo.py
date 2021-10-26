@@ -4,7 +4,7 @@ import re
 import requests
 from bs4 import BeautifulSoup
 
-import interSubs_config as config
+import config
 
 
 # leo.org

@@ -8,7 +8,7 @@ from urllib.parse import quote
 
 import requests
 
-import interSubs_config as config
+import config
 
 
 # https://github.com/ssut/py-googletrans

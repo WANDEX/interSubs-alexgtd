@@ -5,7 +5,7 @@ from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 
-import interSubs_config as config
+import config
 
 
 def morfix(word):

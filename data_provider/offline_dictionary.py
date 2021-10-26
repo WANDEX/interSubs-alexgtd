@@ -1,7 +1,7 @@
 import os
 import re
 
-import interSubs_config as config
+import config
 
 
 # offline dictionary with word \t translation

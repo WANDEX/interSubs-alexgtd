@@ -11,7 +11,7 @@ import requests
 from bs4 import BeautifulSoup
 from six.moves import urllib
 
-import interSubs_config as config
+import config
 from data_provider.pons import pons_combos
 
 

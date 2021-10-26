@@ -1,6 +1,6 @@
 import requests
 
-import interSubs_config as config
+import config
 
 
 # https://github.com/EmilioK97/pydeepl
