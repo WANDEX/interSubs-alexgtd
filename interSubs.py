@@ -5,8 +5,7 @@ import threading
 import time
 
 from PyQt5.QtCore import Qt, QObject, pyqtSignal, pyqtSlot
-from PyQt5.QtGui import QPaintEvent, QPainter, QFontMetrics, QColor, QPen, QBrush
-from PyQt5.QtWidgets import QApplication, QLabel
+from PyQt5.QtWidgets import QApplication
 
 import config
 from data_provider.subtitles_data_source import SubtitlesDataSourceWorker
@@ -52,57 +51,6 @@ class thread_translations(QObject):
 				continue
 
 			self.get_translations.emit(word, globalX, False)
-
-
-class HighlightableLabel(QLabel):
-	def __init__(self, text: str, config):
-		super().__init__(text)
-		self.setMouseTracking(True)
-		self.cfg = config
-		self.word = text
-		self.is_highlighting = False
-
-		self.setStyleSheet('background: transparent; color: transparent;')
-
-	def highlight(self, color, underline_width):
-		color = QColor(color)
-		color = QColor(color.red(), color.green(), color.blue(), 200)
-		painter = QPainter(self)
-
-		if self.cfg.is_hover_underline:
-			font_metrics = QFontMetrics(self.font())
-			text_width = font_metrics.width(self.word)
-			text_height = font_metrics.height()
-
-			brush = QBrush(color)
-			pen = QPen(brush, underline_width, Qt.SolidLine, Qt.RoundCap)
-			painter.setPen(pen)
-			painter.drawLine(0, text_height - underline_width, text_width, text_height - underline_width)
-
-		if self.cfg.is_hover_highlight:
-			x = y = 0
-			y += self.fontMetrics().ascent()
-
-			painter.setPen(color)
-			painter.drawText(x, y + self.cfg.outline_top_padding - self.cfg.outline_bottom_padding, self.word)
-
-	def paintEvent(self, evt: QPaintEvent):
-		if self.is_highlighting:
-			self.highlight(self.cfg.hover_color, self.cfg.hover_underline_thickness)
-
-	def resizeEvent(self, event):
-		text_height = self.fontMetrics().height()
-		text_width = self.fontMetrics().width(self.word)
-
-		self.setFixedSize(text_width, text_height + self.cfg.outline_bottom_padding + self.cfg.outline_top_padding)
-
-	def enterEvent(self, event):
-		self.is_highlighting = True
-		self.repaint()
-
-	def leaveEvent(self, event):
-		self.is_highlighting = False
-		self.repaint()
 
 
 def main():
