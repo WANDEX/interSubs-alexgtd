@@ -3,6 +3,7 @@ from typing import Callable, Tuple
 from PyQt5.QtCore import QEvent
 from PyQt5.QtWidgets import QLabel, QHBoxLayout, QWidget, QVBoxLayout, QBoxLayout
 
+from ui.custom_label import OutlinedLabel
 from ui.util import create_frame, clear_layout
 
 
@@ -35,7 +36,8 @@ def split_string_by_words_limit(text: str, limit: int) -> Tuple[str, str]:
 
 
 class SubtitlesLine:
-    def __init__(self, parent_layout: QBoxLayout):
+    def __init__(self, parent_layout: QBoxLayout, config):
+        self.cfg = config
         self.line_layout = create_horizontal_linear_layout()
         parent_layout.addLayout(self.line_layout)
 
@@ -43,15 +45,24 @@ class SubtitlesLine:
 
     def set_text(self, text: str) -> None:
         clear_layout(self.line_layout)
+        label_factory = self.get_label_factory()
         for word in text.split():
-            label = QLabel(word)
+            label = label_factory(word)
             label.setMouseTracking(True)
             label.enterEvent = self.enclose_text_into_mouse_enter_event_handler(word)
             self.line_layout.addWidget(label)
 
+    def get_label_factory(self) -> Callable[[str], QLabel]:
+        if self.cfg.is_subs_outlined:
+            label_factory = lambda string: OutlinedLabel(string, self.cfg)
+        else:
+            label_factory = QLabel
+        return label_factory
+
     def enclose_text_into_mouse_enter_event_handler(self, text: str) -> Callable[[QEvent], None]:
         def enter_event(event: QEvent):
             self.mouse_enter_event_handler(text, event)
+
         return enter_event
 
     def register_mouse_enter_event_handler(self, handler: Callable[[str, QEvent], None]) -> None:
@@ -64,8 +75,8 @@ class SubtitlesView:
         self.frame = create_frame(self.cfg.style_subs)
         self.outer_layout = create_vertical_linear_layout(self.frame, self.cfg.subs_padding_between_lines)
 
-        self.first_subs_line = SubtitlesLine(self.outer_layout)
-        self.second_subs_line = SubtitlesLine(self.outer_layout)
+        self.first_subs_line = SubtitlesLine(self.outer_layout, self.cfg)
+        self.second_subs_line = SubtitlesLine(self.outer_layout, self.cfg)
 
     def submit_subs(self, subs_text: str) -> None:
         subs_lines = split_string_by_words_limit(subs_text, 5)
