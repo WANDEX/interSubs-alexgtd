@@ -1,10 +1,9 @@
 from typing import Callable, Tuple
 
 from PyQt5.QtCore import QEvent
-from PyQt5.QtWidgets import QLabel, QHBoxLayout, QWidget, QVBoxLayout, QBoxLayout
+from PyQt5.QtWidgets import QHBoxLayout, QWidget, QVBoxLayout, QBoxLayout
 
-from ui.custom_label import OutlinedLabel
-from ui.util import create_frame, clear_layout
+from ui.util import create_frame, clear_layout, get_label_factory
 
 
 def create_vertical_linear_layout(parent: QWidget, spacing: int) -> QVBoxLayout:
@@ -45,19 +44,12 @@ class SubtitlesLine:
 
     def set_text(self, text: str) -> None:
         clear_layout(self.line_layout)
-        label_factory = self.get_label_factory()
+        label_factory = get_label_factory(self.cfg)
         for word in text.split():
             label = label_factory(word)
             label.setMouseTracking(True)
-            label.enterEvent = self.enclose_text_into_mouse_enter_event_handler(word)
+            label.on_enter.connect(self.enclose_text_into_mouse_enter_event_handler(word))
             self.line_layout.addWidget(label)
-
-    def get_label_factory(self) -> Callable[[str], QLabel]:
-        if self.cfg.is_subs_outlined:
-            label_factory = lambda string: OutlinedLabel(string, self.cfg)
-        else:
-            label_factory = QLabel
-        return label_factory
 
     def enclose_text_into_mouse_enter_event_handler(self, text: str) -> Callable[[QEvent], None]:
         def enter_event(event: QEvent):

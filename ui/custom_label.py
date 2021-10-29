@@ -1,9 +1,24 @@
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import Qt, QEvent, pyqtSignal
 from PyQt5.QtGui import QPainter, QColor, QPainterPath, QBrush, QPen, QPalette, QPaintEvent, QFontMetrics
 from PyQt5.QtWidgets import QLabel
 
 
-class OutlinedLabel(QLabel):
+class HoverableLabel(QLabel):
+    on_enter = pyqtSignal(QEvent)
+    on_leave = pyqtSignal(QEvent)
+
+    def event(self, e: QEvent) -> bool:
+        if e.type() == QEvent.Enter:
+            self.on_enter.emit(e)
+            return super().event(e)
+        elif e.type() == QEvent.Leave:
+            self.on_leave.emit(e)
+            return super().event(e)
+        else:
+            return super().event(e)
+
+
+class OutlinedLabel(HoverableLabel):
     def __init__(self, text: str, config):
         super().__init__(text)
         self.cfg = config
@@ -57,37 +72,27 @@ class OutlinedLabel(QLabel):
         painter.setPen(color)
         painter.drawText(x, y, self.text())
 
-    def paintEvent(self, evt: QPaintEvent):
+    def paintEvent(self, evt: QPaintEvent) -> None:
         self.draw_text_and_outline()
 
-    def resizeEvent(self, *args):
-        self.setFixedSize(
-            self.fontMetrics().width(self.text()),
-            self.fontMetrics().height() + self.cfg.outline_bottom_padding + self.cfg.outline_top_padding
-        )
 
-    def sizeHint(self):
-        return QSize(self.fontMetrics().width(self.text()), self.fontMetrics().height())
-
-
-class HighlightableLabel(QLabel):
+class HighlightableLabel(OutlinedLabel):
     def __init__(self, text: str, config):
-        super().__init__(text)
+        super().__init__(text, config)
         self.setMouseTracking(True)
-        self.cfg = config
-        self.word = text
         self.is_highlighting = False
+        self.on_enter.connect(self.on_enter_handler)
+        self.on_leave.connect(self.on_leave_handler)
 
-        self.setStyleSheet('background: transparent; color: transparent;')
-
-    def highlight(self, color, underline_width):
-        color = QColor(color)
+    def highlight(self) -> None:
+        underline_width = self.cfg.hover_underline_thickness
+        color = QColor(self.cfg.hover_color)
         color = QColor(color.red(), color.green(), color.blue(), 200)
         painter = QPainter(self)
 
         if self.cfg.is_hover_underline:
             font_metrics = QFontMetrics(self.font())
-            text_width = font_metrics.width(self.word)
+            text_width = font_metrics.width(self.text())
             text_height = font_metrics.height()
 
             brush = QBrush(color)
@@ -100,22 +105,17 @@ class HighlightableLabel(QLabel):
             y += self.fontMetrics().ascent()
 
             painter.setPen(color)
-            painter.drawText(x, y + self.cfg.outline_top_padding - self.cfg.outline_bottom_padding, self.word)
+            painter.drawText(x, y + self.cfg.outline_top_padding - self.cfg.outline_bottom_padding, self.text())
 
-    def paintEvent(self, evt: QPaintEvent):
+    def paintEvent(self, e: QPaintEvent) -> None:
+        super().paintEvent(e)
         if self.is_highlighting:
-            self.highlight(self.cfg.hover_color, self.cfg.hover_underline_thickness)
+            self.highlight()
 
-    def resizeEvent(self, event):
-        text_height = self.fontMetrics().height()
-        text_width = self.fontMetrics().width(self.word)
-
-        self.setFixedSize(text_width, text_height + self.cfg.outline_bottom_padding + self.cfg.outline_top_padding)
-
-    def enterEvent(self, event):
+    def on_enter_handler(self) -> None:
         self.is_highlighting = True
-        self.repaint()
+        self.update()
 
-    def leaveEvent(self, event):
+    def on_leave_handler(self) -> None:
         self.is_highlighting = False
-        self.repaint()
+        self.update()

@@ -1,5 +1,9 @@
+from typing import Callable
+
 from PyQt5.QtCore import Qt
 from PyQt5.QtWidgets import QFrame, QLayout
+
+from ui.custom_label import HighlightableLabel, HoverableLabel
 
 
 def create_frame(style_sheet: str) -> QFrame:
@@ -21,3 +25,11 @@ def clear_layout(layout: QLayout) -> None:
         widget = item.widget()
         if widget:
             widget.deleteLater()
+
+
+def get_label_factory(config) -> Callable[[str], HoverableLabel]:
+    if config.is_subs_outlined:
+        label_factory = lambda string: HighlightableLabel(string, config)
+    else:
+        label_factory = HoverableLabel
+    return label_factory
