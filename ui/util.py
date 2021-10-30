@@ -17,7 +17,7 @@ def create_frame(style_sheet: str) -> QFrame:
 def clear_layout(layout: QLayout) -> None:
     layout.parentWidget().hide()
 
-    while not layout.isEmpty():
+    while layout.count() > 0:
         item = layout.takeAt(0)
         if not item:
             return
