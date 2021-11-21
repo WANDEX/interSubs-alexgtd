@@ -31,11 +31,9 @@ class OutlinedLabel(HoverableLabel):
 
         painter = QPainter(self)
         text_painter_path = self.get_text_painter_path(x, y)
-        outline_color = QColor(self.cfg.outline_color)
-        outline_width = self.cfg.outline_thickness
 
-        self.draw_blur(painter, text_painter_path, outline_color, outline_width)
-        self.draw_outline(painter, text_painter_path, outline_color, outline_width)
+        self.draw_blurred_outline(painter, text_painter_path)
+        self.draw_outline(painter, text_painter_path, QColor(self.cfg.outline_color), self.cfg.outline_width)
         self.draw_text(painter, x, y)
 
     def get_text_painter_path(self, x: int, y: int) -> QPainterPath:
@@ -43,8 +41,10 @@ class OutlinedLabel(HoverableLabel):
         text_painter_path.addText(x, y, self.font(), self.text())
         return text_painter_path
 
-    def draw_blur(self, painter: QPainter, text_path: QPainterPath, outline_color: QColor, outline_width: int) -> None:
-        range_width = range(outline_width, outline_width + self.cfg.outline_blur)
+    def draw_blurred_outline(self, painter: QPainter, text_path: QPainterPath) -> None:
+        blur_color = QColor(self.cfg.outline_color)
+        range_width = range(self.cfg.outline_width, self.cfg.outline_width + self.cfg.outline_blur_width)
+        
         for width in range_width:
             if width == min(range_width):
                 alpha = 200
@@ -52,18 +52,12 @@ class OutlinedLabel(HoverableLabel):
                 alpha = (max(range_width) - width) / max(range_width) * 200
                 alpha = int(alpha)
 
-            blur_color = QColor(outline_color.red(), outline_color.green(), outline_color.blue(), alpha)
-            blur_brush = QBrush(blur_color, Qt.SolidPattern)
-            blur_pen = QPen(blur_brush, width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+            blur_color.setAlpha(alpha)
+            self.draw_outline(painter, text_path, blur_color, width)
 
-            painter.setPen(blur_pen)
-            painter.drawPath(text_path)
-
-    def draw_outline(self, painter: QPainter, text_path: QPainterPath, outline_color: QColor,
-                     outline_width: int) -> None:
-        outline_color = QColor(outline_color.red(), outline_color.green(), outline_color.blue(), 255)
-        outline_brush = QBrush(outline_color, Qt.SolidPattern)
-        outline_pen = QPen(outline_brush, outline_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
+    def draw_outline(self, painter: QPainter, text_path: QPainterPath, color: QColor, pen_width: int) -> None:
+        outline_brush = QBrush(color, Qt.SolidPattern)
+        outline_pen = QPen(outline_brush, pen_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
         painter.setPen(outline_pen)
         painter.drawPath(text_path)
 
@@ -72,7 +66,7 @@ class OutlinedLabel(HoverableLabel):
         painter.setPen(color)
         painter.drawText(x, y, self.text())
 
-    def paintEvent(self, evt: QPaintEvent) -> None:
+    def paintEvent(self, e: QPaintEvent) -> None:
         self.draw_text_and_outline()
 
 

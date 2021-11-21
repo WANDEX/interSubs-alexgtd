@@ -193,8 +193,8 @@ style_popup = '''
 is_subs_outlined = True
 outline_color = '#000000'
 # ~ N/2.5 == size in px; here it's 2px of outline + another ~ 3px of blur
-outline_thickness = 5
-outline_blur = 7
+outline_width = 5
+outline_blur_width = 7
 # change if outline is cropped from top/bottom of some letters depending on font
 # in px; can take negative values
 outline_top_padding = -2
