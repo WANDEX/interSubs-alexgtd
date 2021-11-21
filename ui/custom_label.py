@@ -4,15 +4,15 @@ from PyQt5.QtWidgets import QLabel
 
 
 class HoverableLabel(QLabel):
-    on_enter = pyqtSignal(QEvent)
-    on_leave = pyqtSignal(QEvent)
+    on_hover_enter = pyqtSignal(QEvent)
+    on_hover_leave = pyqtSignal(QEvent)
 
     def event(self, e: QEvent) -> bool:
         if e.type() == QEvent.Enter:
-            self.on_enter.emit(e)
+            self.on_hover_enter.emit(e)
             return super().event(e)
         elif e.type() == QEvent.Leave:
-            self.on_leave.emit(e)
+            self.on_hover_leave.emit(e)
             return super().event(e)
         else:
             return super().event(e)
@@ -21,30 +21,33 @@ class HoverableLabel(QLabel):
 class OutlinedLabel(HoverableLabel):
     def __init__(self, text: str, config):
         super().__init__(text)
-        self.cfg = config
+        self._cfg = config
 
-    def draw_text_and_outline(self) -> None:
+    def paintEvent(self, e: QPaintEvent) -> None:
+        self._draw_text_and_outline()
+
+    def _draw_text_and_outline(self) -> None:
         x = 0
         y = 0
         y += self.fontMetrics().ascent()
-        y = y + self.cfg.outline_top_padding - self.cfg.outline_bottom_padding
+        y = y + self._cfg.outline_top_padding - self._cfg.outline_bottom_padding
 
         painter = QPainter(self)
-        text_painter_path = self.get_text_painter_path(x, y)
+        text_painter_path = self._get_text_painter_path(x, y)
 
-        self.draw_blurred_outline(painter, text_painter_path)
-        self.draw_outline(painter, text_painter_path, QColor(self.cfg.outline_color), self.cfg.outline_width)
-        self.draw_text(painter, x, y)
+        self._draw_blurred_outline(painter, text_painter_path)
+        self._draw_outline(painter, text_painter_path, QColor(self._cfg.outline_color), self._cfg.outline_width)
+        self._draw_text(painter, x, y)
 
-    def get_text_painter_path(self, x: int, y: int) -> QPainterPath:
+    def _get_text_painter_path(self, x: int, y: int) -> QPainterPath:
         text_painter_path = QPainterPath()
         text_painter_path.addText(x, y, self.font(), self.text())
         return text_painter_path
 
-    def draw_blurred_outline(self, painter: QPainter, text_path: QPainterPath) -> None:
-        blur_color = QColor(self.cfg.outline_color)
-        range_width = range(self.cfg.outline_width, self.cfg.outline_width + self.cfg.outline_blur_width)
-        
+    def _draw_blurred_outline(self, painter: QPainter, text_path: QPainterPath) -> None:
+        blur_color = QColor(self._cfg.outline_color)
+        range_width = range(self._cfg.outline_width, self._cfg.outline_width + self._cfg.outline_blur_width)
+
         for width in range_width:
             if width == min(range_width):
                 alpha = 200
@@ -53,38 +56,40 @@ class OutlinedLabel(HoverableLabel):
                 alpha = int(alpha)
 
             blur_color.setAlpha(alpha)
-            self.draw_outline(painter, text_path, blur_color, width)
+            self._draw_outline(painter, text_path, blur_color, width)
 
-    def draw_outline(self, painter: QPainter, text_path: QPainterPath, color: QColor, pen_width: int) -> None:
+    def _draw_outline(self, painter: QPainter, text_path: QPainterPath, color: QColor, pen_width: int) -> None:
         outline_brush = QBrush(color, Qt.SolidPattern)
         outline_pen = QPen(outline_brush, pen_width, Qt.SolidLine, Qt.RoundCap, Qt.RoundJoin)
         painter.setPen(outline_pen)
         painter.drawPath(text_path)
 
-    def draw_text(self, painter: QPainter, x: int, y: int) -> None:
+    def _draw_text(self, painter: QPainter, x: int, y: int) -> None:
         color = self.palette().color(QPalette.Text)
         painter.setPen(color)
         painter.drawText(x, y, self.text())
-
-    def paintEvent(self, e: QPaintEvent) -> None:
-        self.draw_text_and_outline()
 
 
 class HighlightableLabel(OutlinedLabel):
     def __init__(self, text: str, config):
         super().__init__(text, config)
         self.setMouseTracking(True)
-        self.is_highlighting = False
-        self.on_enter.connect(self.on_enter_handler)
-        self.on_leave.connect(self.on_leave_handler)
+        self._is_highlighting = False
+        self.on_hover_enter.connect(self._highlight)
+        self.on_hover_leave.connect(self._unhighlight)
 
-    def highlight(self) -> None:
-        underline_width = self.cfg.hover_underline_thickness
-        color = QColor(self.cfg.hover_color)
-        color = QColor(color.red(), color.green(), color.blue(), 200)
+    def paintEvent(self, e: QPaintEvent) -> None:
+        super().paintEvent(e)
+        if self._is_highlighting:
+            self._draw_highlighting()
+
+    def _draw_highlighting(self) -> None:
+        color = QColor(self._cfg.highlighting_color)
+        color.setAlpha(200)
         painter = QPainter(self)
 
-        if self.cfg.is_hover_underline:
+        if self._cfg.is_hover_underline:
+            underline_width = self._cfg.underlined_highlighting_width
             font_metrics = QFontMetrics(self.font())
             text_width = font_metrics.width(self.text())
             text_height = font_metrics.height()
@@ -94,22 +99,17 @@ class HighlightableLabel(OutlinedLabel):
             painter.setPen(pen)
             painter.drawLine(0, text_height - underline_width, text_width, text_height - underline_width)
 
-        if self.cfg.is_hover_highlight:
+        if self._cfg.is_hover_highlight:
             x = y = 0
             y += self.fontMetrics().ascent()
 
             painter.setPen(color)
-            painter.drawText(x, y + self.cfg.outline_top_padding - self.cfg.outline_bottom_padding, self.text())
+            painter.drawText(x, y + self._cfg.outline_top_padding - self._cfg.outline_bottom_padding, self.text())
 
-    def paintEvent(self, e: QPaintEvent) -> None:
-        super().paintEvent(e)
-        if self.is_highlighting:
-            self.highlight()
-
-    def on_enter_handler(self) -> None:
-        self.is_highlighting = True
+    def _highlight(self) -> None:
+        self._is_highlighting = True
         self.update()
 
-    def on_leave_handler(self) -> None:
-        self.is_highlighting = False
+    def _unhighlight(self) -> None:
+        self._is_highlighting = False
         self.update()

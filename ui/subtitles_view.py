@@ -53,7 +53,7 @@ class SubtitlesLine:
         for word in text.split():
             label = label_factory(word)
             label.setMouseTracking(True)
-            label.on_enter.connect(self.enclose_text_into_mouse_enter_event_handler(word))
+            label.on_hover_enter.connect(self.enclose_text_into_mouse_enter_event_handler(word))
             self.line_layout.addWidget(label)
 
         self.line_layout.addStretch()

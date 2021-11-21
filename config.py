@@ -201,10 +201,10 @@ outline_top_padding = -2
 outline_bottom_padding = 2
 
 # highlighting the word under cursor
-hover_color = '#F44336'
 is_hover_highlight = False	 # may look ugly due to only int precision of QFontMetrics
 is_hover_underline = True
-hover_underline_thickness = 5
+highlighting_color = '#F44336'
+underlined_highlighting_width = 5
 
 #########################################################
 #########################################################
@@ -281,6 +281,3 @@ mouse_buttons = [
 
 # http://culmus.sourceforge.net/summary.html
 he_fonts = ['Miriam', 'Miriam Mono', 'Drugulin', 'David', 'Frank Ruehl', 'Shofar', 'Varela Round', 'FiraGO']
-
-# obsolete vars
-hover_underline_width = hover_underline_thickness
