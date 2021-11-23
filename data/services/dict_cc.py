@@ -5,25 +5,26 @@ from urllib.parse import quote
 import requests
 from bs4 import BeautifulSoup
 
-import config
+from data.services import USER_AGENT
+from models.translation import Translation
 
-USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/64.0.3282.167 Safari/537.36"
+SERVICE_NAME = "dict.cc"
 URL = "https://%s-%s.dict.cc/?s=%s"
 
 
-def translate(word: str) -> Tuple[List[Tuple[str, str]], List[str]]:
-    compiled_url = URL % (config.lang_from, config.lang_to, quote(word))
-    pairs_list = get_from_remote(compiled_url)
+def translate(text: str, lang_from: str, lang_to: str) -> Translation:
+    content = _get_content_from_service(URL % (lang_from, lang_to, quote(text)))
+    pairs_list = _find_all_original_translation_pairs(content)
 
-    return pairs_list, ['', '']
+    return Translation(SERVICE_NAME, text, pairs_list)
 
 
-def get_from_remote(url: str) -> List[Tuple[str, str]]:
+def _get_content_from_service(url: str) -> str:
     response = requests.get(url, headers={'User-Agent': USER_AGENT})
     if response.status_code != requests.codes.ok:
         response.raise_for_status()
 
-    return _find_all_original_translation_pairs(response.text)
+    return response.text
 
 
 def _find_all_original_translation_pairs(content: str) -> List[Tuple[str, str]]:
@@ -39,7 +40,5 @@ def _find_all_original_translation_pairs(content: str) -> List[Tuple[str, str]]:
         original = pairs[1].get_text()
         translation = pairs[0].get_text()
         pairs_list.append((original, translation))
-        if config.number_of_translations_to_save and len(pairs_list) > config.number_of_translations_to_save:
-            break
 
     return pairs_list
