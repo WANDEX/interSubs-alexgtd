@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup
 from six.moves import urllib
 
 import config
-from data_provider.pons import pons_combos
+from data.services.pons import pons_combos
 
 
 def listen(word, type='gtts'):

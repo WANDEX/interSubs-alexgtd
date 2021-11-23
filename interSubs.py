@@ -5,7 +5,7 @@ import sys
 from PyQt5.QtWidgets import QApplication
 
 import config
-from data_provider.subtitles_data_source import SubtitlesDataSourceWorker
+from data.subtitles_data_source import SubtitlesDataSourceWorker
 from mpv import Mpv
 from ui.popup_view import PopupView
 from ui.subtitles_view import SubtitlesView
