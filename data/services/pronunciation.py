@@ -12,12 +12,12 @@ from bs4 import BeautifulSoup
 from six.moves import urllib
 
 import config
-from data.services.pons import pons_combos
+import data.services.pons as pons
 
 
 def listen(word, type='gtts'):
     if type == 'pons':
-        if config.lang_from + config.lang_to in pons_combos:
+        if config.lang_from + config.lang_to in pons.LANG_COMBINATIONS:
             url = 'http://en.pons.com/translate?q=%s&l=%s%s&in=%s' % (
                 quote(word), config.lang_from, config.lang_to, config.lang_from)
         else:
