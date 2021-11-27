@@ -1,3 +1,4 @@
+import logging
 import re
 from urllib.parse import quote
 
@@ -6,6 +7,8 @@ from bs4 import BeautifulSoup
 
 from data.services import USER_AGENT
 from models.translation import Translation
+
+log = logging.getLogger(__name__)
 
 LANG_COMBINATIONS = [
     'enes', 'enfr', 'deen', 'enpl', 'ensl', 'defr', 'dees', 'deru', 'depl', 'desl', 'deit', 'dept', 'detr', 'deel',
@@ -60,7 +63,7 @@ def _find_all_original_translation_pairs(soup) -> list[tuple[str, str]]:
         try:
             original, translation = _find_original_translation_pair(pair)
         except Exception as e:
-            print("Couldn't parse (original, translation) pair.\n", e)
+            log.warning("Couldn't parse (original, translation) pair.", exc_info=e)
             continue
 
         pairs_list.append((original, translation))
@@ -98,7 +101,7 @@ def _find_word_description(soup) -> list[str]:
         else:
             word_description = ''
     except Exception as e:
-        print("Couldn't parse word description.\n", e)
+        log.warning("Couldn't parse word description.", exc_info=e)
         word_description = ''
 
     return _build_word_description_list(word_description)
