@@ -29,8 +29,8 @@ def main():
     subs_view.register_text_hover_event_handler(popup_view.pop)
 
     subs_data_source_worker = SubtitlesDataSourceWorker(subs_file_path)
-    subs_data_source_worker.on_subtitles_changed.connect(popup_view.hide)
-    subs_data_source_worker.on_subtitles_changed.connect(subs_view.submit_subs)
+    subs_data_source_worker.on_subtitles_change.connect(popup_view.hide)
+    subs_data_source_worker.on_subtitles_change.connect(subs_view.submit_subs)
     subs_data_source_worker.start()
 
     sys.exit(app.exec_())
