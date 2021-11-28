@@ -1,4 +1,5 @@
 #! /usr/bin/env python
+import argparse
 import logging
 import os
 import sys
@@ -7,7 +8,6 @@ from PyQt5.QtWidgets import QApplication
 
 import config
 from data.subtitles_data_source import SubtitlesDataSourceWorker
-from mpv import Mpv
 from ui.popup_view import PopupView
 from ui.subtitles_view import SubtitlesView
 
@@ -33,15 +33,20 @@ def init_logger() -> None:
     log.addHandler(console_handler)
 
 
+def parse_command_line_arguments() -> argparse.Namespace:
+    args_parser = argparse.ArgumentParser()
+    args_parser.add_argument("-i", "--ipc-file-path", required=True)
+    args_parser.add_argument("-s", "--subs-file-path", required=True)
+    args = args_parser.parse_args()
+    return args
+
+
 def main():
     os.chdir(os.path.dirname(__file__))
     init_logger()
     log.info("Start.")
 
-    mpv_socket_path = sys.argv[1]
-    mpv = Mpv(mpv_socket_path)
-    subs_file_path = sys.argv[2]
-
+    args = parse_command_line_arguments()
     app = QApplication(sys.argv)
 
     cfg = config
@@ -52,7 +57,7 @@ def main():
     popup_view = PopupView(cfg)
     subs_view.register_text_hover_event_handler(popup_view.pop)
 
-    subs_data_source = SubtitlesDataSourceWorker(subs_file_path)
+    subs_data_source = SubtitlesDataSourceWorker(args.subs_file_path)
     subs_data_source.on_subtitles_change.connect(popup_view.hide)
     subs_data_source.on_subtitles_change.connect(subs_view.submit_subs)
     subs_data_source.on_error.connect(

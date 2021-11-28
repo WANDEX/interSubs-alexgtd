@@ -19,7 +19,7 @@ end
 local python = {}
 
 function python:start(ipc_file, subs_file)
-	self.cmd = PYTHON_COMMAND_NAME..' "%s" "%s" "%s"'
+	self.cmd = PYTHON_COMMAND_NAME..' "%s" --ipc-file-path="%s" --subs-file-path="%s"'
 	self.script_file_path = utils.join_path(mp.get_script_directory(), PYTHON_SCRIPT_FILENAME)
 
 	os.execute(put_cmd_in_bg(self.cmd:format(self.script_file_path, ipc_file, subs_file)))
