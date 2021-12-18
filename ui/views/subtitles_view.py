@@ -3,6 +3,7 @@ from typing import Callable, Tuple
 from PyQt5.QtCore import QEvent
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QVBoxLayout, QBoxLayout
 
+from ui.views.view import View
 from ui.util import create_frame, clear_layout, get_label_factory
 
 
@@ -68,8 +69,9 @@ class SubtitlesLine:
         self.mouse_enter_event_handler = handler
 
 
-class SubtitlesView:
-    def __init__(self, config):
+class SubtitlesView(View):
+    def __init__(self, config) -> None:
+        super().__init__()
         self.cfg = config
         self.frame = create_frame(self.cfg.style_subs)
         self.outer_layout = create_vertical_linear_layout(self.frame, self.cfg.subs_padding_between_lines)

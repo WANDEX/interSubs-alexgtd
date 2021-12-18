@@ -7,8 +7,9 @@ from PyQt5.QtWidgets import QApplication
 
 import config
 from data.subtitles_data_source import SubtitlesDataSourceWorker
-from ui.popup_view import PopupView
-from ui.subtitles_view import SubtitlesView
+from ui.views.popup_view import PopupView
+from ui.views.subtitles_view import SubtitlesView
+from ui.presenters.subtitles_presenter import SubtitlesPresenter
 
 log = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ class GUI:
 
         self._init_config(config_)
         self._init_views()
-        self._init_data_sources()
+        self._init_presenters()
 
     def enter_event_loop(self) -> int:
         return self._app.exec_()
@@ -41,14 +42,11 @@ class GUI:
         self.popup_view = PopupView(self._cfg)
         self.subs_view.register_text_hover_event_handler(self.popup_view.pop)
 
-    def _init_data_sources(self) -> None:
-        self.subs_data_source = SubtitlesDataSourceWorker(parse_command_line_arguments().subs_file_path)
-        self.subs_data_source.on_subtitles_change.connect(self.popup_view.hide)
-        self.subs_data_source.on_subtitles_change.connect(self.subs_view.submit_subs)
-        self.subs_data_source.on_error.connect(
-            lambda e: log.error("Exception occurred while watching the subtitles file.", exc_info=e)
+    def _init_presenters(self) -> None:
+        self.subs_presenter = SubtitlesPresenter(
+            self.subs_view,
+            SubtitlesDataSourceWorker(parse_command_line_arguments().subs_file_path)
         )
-        self.subs_data_source.start()
 
 
 _ui: Optional[GUI] = None

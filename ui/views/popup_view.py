@@ -1,11 +1,13 @@
 from PyQt5.QtGui import QMouseEvent
 from PyQt5.QtWidgets import QVBoxLayout, QLabel
 
+from ui.views.view import View
 from ui.util import create_frame, clear_layout
 
 
-class PopupView:
-    def __init__(self, config):
+class PopupView(View):
+    def __init__(self, config) -> None:
+        super().__init__()
         self.config = config
         self.frame = create_frame(self.config.style_popup)
         self.layout = QVBoxLayout(self.frame)
