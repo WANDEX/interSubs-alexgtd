@@ -1,5 +1,6 @@
 import logging
 
+import ui
 from ui.presenters.presenter import Presenter
 
 log = logging.getLogger(__name__)
@@ -18,3 +19,6 @@ class SubtitlesPresenter(Presenter):
             lambda e: log.error("Exception occurred while watching the subtitles file.", exc_info=e)
         )
         self._subs_data_source.start()
+
+    def on_text_hover_enter(self, text: str, event) -> None:
+        ui.get_popup_presenter().pop(text, event)

@@ -3,8 +3,8 @@ from typing import Callable, Tuple
 from PyQt5.QtCore import QEvent
 from PyQt5.QtWidgets import QHBoxLayout, QWidget, QVBoxLayout, QBoxLayout
 
-from ui.views.view import View
 from ui.util import create_frame, clear_layout, get_label_factory
+from ui.views.view import View
 
 
 def create_vertical_linear_layout(parent: QWidget, spacing: int) -> QVBoxLayout:
@@ -35,79 +35,75 @@ def split_string_by_words_limit(text: str, limit: int) -> Tuple[str, str]:
 
 
 class SubtitlesLine:
-    def __init__(self, parent_layout: QBoxLayout, config):
-        self.cfg = config
-        self.line_layout = create_horizontal_linear_layout()
-        parent_layout.addLayout(self.line_layout)
+    def __init__(self, parent_layout: QBoxLayout, config) -> None:
+        self._cfg = config
+        self._line_layout = create_horizontal_linear_layout()
+        parent_layout.addLayout(self._line_layout)
 
-        self.mouse_enter_event_handler: Callable[[str, QEvent], None] = lambda text, event: None
+        # default empty function to avoid null checking
+        self.on_text_hover_enter: Callable[[str, QEvent], None] = lambda text, event: None
 
     def set_text(self, text: str) -> None:
-        clear_layout(self.line_layout)
+        clear_layout(self._line_layout)
         if text:
-            self.populate_layout_with_widgets(text)
+            self._populate_layout_with_widgets(text)
 
-    def populate_layout_with_widgets(self, text: str) -> None:
-        label_factory = get_label_factory(self.cfg)
-        self.line_layout.addStretch()
+    def _populate_layout_with_widgets(self, text: str) -> None:
+        label_factory = get_label_factory(self._cfg)
+        self._line_layout.addStretch()
 
         for word in text.split():
             label = label_factory(word)
             label.setMouseTracking(True)
-            label.on_hover_enter.connect(self.enclose_text_into_mouse_enter_event_handler(word))
-            self.line_layout.addWidget(label)
+            label.on_hover_enter.connect(self._enclose_text_into_on_hover_enter_event(word))
+            self._line_layout.addWidget(label)
 
-        self.line_layout.addStretch()
+        self._line_layout.addStretch()
 
-    def enclose_text_into_mouse_enter_event_handler(self, text: str) -> Callable[[QEvent], None]:
-        def enter_event(event: QEvent):
-            self.mouse_enter_event_handler(text, event)
+    def _enclose_text_into_on_hover_enter_event(self, text: str) -> Callable[[QEvent], None]:
+        def on_hover_enter(e: QEvent) -> None:
+            self.on_text_hover_enter(text, e)
 
-        return enter_event
-
-    def register_mouse_enter_event_handler(self, handler: Callable[[str, QEvent], None]) -> None:
-        self.mouse_enter_event_handler = handler
+        return on_hover_enter
 
 
 class SubtitlesView(View):
     def __init__(self, config) -> None:
         super().__init__()
-        self.cfg = config
-        self.frame = create_frame(self.cfg.style_subs)
-        self.outer_layout = create_vertical_linear_layout(self.frame, self.cfg.subs_padding_between_lines)
+        self._cfg = config
+        self._frame = create_frame(self._cfg.style_subs)
+        self._layout = create_vertical_linear_layout(self._frame, self._cfg.subs_padding_between_lines)
 
-        self.first_subs_line = SubtitlesLine(self.outer_layout, self.cfg)
-        self.second_subs_line = SubtitlesLine(self.outer_layout, self.cfg)
+        self._first_subs_line = SubtitlesLine(self._layout, self._cfg)
+        self._second_subs_line = SubtitlesLine(self._layout, self._cfg)
+        self._first_subs_line.on_text_hover_enter = self.on_text_hover_enter
+        self._second_subs_line.on_text_hover_enter = self.on_text_hover_enter
 
     def submit_subs(self, subs_text: str) -> None:
-        subs_lines = split_string_by_words_limit(subs_text, 5)
+        first_line, second_line = split_string_by_words_limit(subs_text, 5)
 
-        self.first_subs_line.set_text(subs_lines[0])
-        self.second_subs_line.set_text(subs_lines[1])
+        self._first_subs_line.set_text(first_line)
+        self._second_subs_line.set_text(second_line)
 
         self.set_subs_frames_x_y_axis()
         self.show()
 
-    def register_text_hover_event_handler(self, handler: Callable[[str, QEvent], None]) -> None:
-        self.first_subs_line.register_mouse_enter_event_handler(handler)
-        self.second_subs_line.register_mouse_enter_event_handler(handler)
+    def on_text_hover_enter(self, text: str, event: QEvent) -> None:
+        self.presenter.on_text_hover_enter(text, event)
 
     def show(self) -> None:
-        self.frame.show()
-
-    def hide(self) -> None:
-        self.frame.hide()
+        self._frame.show()
 
     def set_subs_frames_x_y_axis(self) -> None:
-        self.frame.adjustSize()
+        self._frame.adjustSize()
 
-        w = self.frame.geometry().width()
-        h = self.frame.height = self.frame.geometry().height()
-        x = (self.cfg.screen_width / 2) - (w / 2)
+        w = self._frame.geometry().width()
+        h = self._frame.height = self._frame.geometry().height()
+        x = (self._cfg.screen_width / 2) - (w / 2)
 
-        if self.cfg.subs_top_placement_B:
-            y = self.cfg.subs_screen_edge_padding
+        if self._cfg.subs_top_placement_B:
+            y = self._cfg.subs_screen_edge_padding
         else:
-            y = self.cfg.screen_height - self.cfg.subs_screen_edge_padding - h
+            y = self._cfg.screen_height - self._cfg.subs_screen_edge_padding - h
 
-        self.frame.setGeometry(int(x), int(y), 0, 0)
+        self._frame.setGeometry(int(x), int(y), 0, 0)

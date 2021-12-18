@@ -7,9 +7,10 @@ from PyQt5.QtWidgets import QApplication
 
 import config
 from data.subtitles_data_source import SubtitlesDataSourceWorker
+from ui.presenters.popup_presenter import PopupPresenter
+from ui.presenters.subtitles_presenter import SubtitlesPresenter
 from ui.views.popup_view import PopupView
 from ui.views.subtitles_view import SubtitlesView
-from ui.presenters.subtitles_presenter import SubtitlesPresenter
 
 log = logging.getLogger(__name__)
 
@@ -40,13 +41,13 @@ class GUI:
     def _init_views(self) -> None:
         self.subs_view = SubtitlesView(self._cfg)
         self.popup_view = PopupView(self._cfg)
-        self.subs_view.register_text_hover_event_handler(self.popup_view.pop)
 
     def _init_presenters(self) -> None:
         self.subs_presenter = SubtitlesPresenter(
             self.subs_view,
             SubtitlesDataSourceWorker(parse_command_line_arguments().subs_file_path)
         )
+        self.popup_presenter = PopupPresenter(self.popup_view)
 
 
 _ui: Optional[GUI] = None
@@ -59,3 +60,8 @@ def run() -> None:
 
     log.info("Enter event loop.")
     sys.exit(_ui.enter_event_loop())
+
+
+def get_popup_presenter() -> PopupPresenter:
+    global _ui
+    return _ui.popup_presenter
