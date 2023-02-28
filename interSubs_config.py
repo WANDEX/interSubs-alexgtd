@@ -10,9 +10,9 @@
 # make sure selected translation function supports your language and so that codes of your languages are correct
 # for instance Pons doesn't support Hebrew, Google and Reverso do, but their codes are different: 'iw' and 'he' respectively
 # translate from language
-lang_from = 'de'
+lang_from = 'en'
 # translate to language
-lang_to = 'en'
+lang_to = 'ru'
 
 # dictionaries to use, one or more
 # or other function's name you might write that will return ([[word, translation]..], [morphology = '', gender = ''])
@@ -35,7 +35,7 @@ translation_function_name_full_sentence = 'google'
 # number of translations in popup
 number_of_translations = 4
 # number of translations to save in files for each word; 0 - to save all
-number_of_translations_to_save = 50
+number_of_translations_to_save = 10
 
 # gtts|pons|forvo # gtts is google-text-to-speech
 listen_via = 'forvo'
@@ -49,24 +49,24 @@ pause_during_translation_B = True
 # don't hide subtitle when its time is up and keep it on screen until the next line
 extend_subs_duration2max_B = True
 # limit extension duration in seconds; N == 0: do not limit
-extend_subs_duration_limit_sec = 33
+extend_subs_duration_limit_sec = 5
 # show interSubs only in fullscreen
-hide_when_not_fullscreen_B = True
+hide_when_not_fullscreen_B = False
 
 # interval between checking for the next subtitle; in seconds
-update_time = .01
+update_time = .1
 # interval in seconds between checking if mpv is in focus using `xdotool` and/or in fullscreen; in seconds
-focus_checking_time = .1
+focus_checking_time = 5
 
 # firefox "https://en.wiktionary.org/wiki/${word}"
-show_in_browser = 'chromium "http://www.linguee.com/german-english/search?source=german&query=${word}"'
+show_in_browser = 'firefox-developer-edition "http://www.linguee.com/english-russian/search?source=english&query=${word}"'
 
 # filename where to save words if needed by bound to mouse-button function f_save_word_to_file; checks if the word is already there.
-save_word_to_file_fname = '~/saved_words_by_interSubs'
+save_word_to_file_fname = '~/Downloads/saved_words_by_interSubs'
 
 # for going through lines step by step
 # skip pausing when subs are less then X words
-auto_pause_min_words = 10
+auto_pause_min_words = 5
 # 0 - don't pause
 # 1 - pause after subs change
 # 2 - pause before subs change
@@ -87,13 +87,13 @@ R2L_to_B = False
 # show subtitles at the top of the screen
 subs_top_placement_B = False
 # distance to the edge; in px
-subs_screen_edge_padding = 1
+subs_screen_edge_padding = 60
 subs_padding_between_lines = 0
 
 # when subtitle consists of only one overly long line - splitting into two
 split_long_lines_B = True
 # split when there are more than N words in line
-split_long_lines_words_min = 8
+split_long_lines_words_min = 12
 
 # Qt's line wrapping doesn't work well
 split_long_lines_in_popup_B = True
@@ -140,7 +140,7 @@ style_subs = '''
 
 		font-family: "American Typewriter";
 		/* font-weight: bold; */
-		font-size: 52px;
+		font-size: 30px;
 	}
 '''
 
@@ -148,11 +148,11 @@ style_subs = '''
 style_popup = '''
 	/* main */
 	QFrame {
-		background: rgb(44, 44, 44);
+		background: rgba(44, 44, 44, 50%);
 
 		font-family: "Trebuchet MS";
 		font-weight: bold;
-		font-size: 40px;
+		font-size: 20px;
 	}
 	/* original language */
 	QLabel#first_line {
@@ -179,7 +179,7 @@ style_popup = '''
 	/* delimiter between dictionaries */
 	QFrame#delimiter {
 		background: #8B8F88;
-		font-size: 4px;	/* emulating thickness */
+		font-size: 2px;	/* emulating thickness */
 	}
 '''
 
@@ -196,7 +196,7 @@ outline_top_padding = -2
 outline_bottom_padding = 2
 
 # highlighting the word under cursor
-hover_color = '#F44336'
+hover_color = '#FB8F88'
 hover_hightlight = False	# may look ugly due to only int precision of QFontMetrics
 hover_underline = True
 hover_underline_thickness = 5
@@ -258,7 +258,7 @@ mouse_buttons = [
 	['RightButton',		'NoModifier',		'f_translation_full_sentence'],
 	['MiddleButton',	'NoModifier',		'f_auto_pause_options'],
 
-	['BackButton',		'NoModifier',		'f_listen'],
+    ['ForwardButton',   'AltModifier',      'f_listen'],
 
 	['ScrollDown',		'NoModifier',		'f_scroll_translations_down'],
 	['ScrollUp',		'NoModifier',		'f_scroll_translations_up'],
