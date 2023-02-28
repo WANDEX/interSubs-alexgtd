@@ -23,7 +23,7 @@ def pons(word):
             quote(word), config.lang_to, config.lang_from, config.lang_from)
 
     pairs = []
-    fname = 'urls/' + url.replace('/', "-")
+    fname = config.FDHSN + url.replace('/', "-")
     try:
         p = open(fname).read().split('=====/////-----')
         try:

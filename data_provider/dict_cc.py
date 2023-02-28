@@ -12,7 +12,7 @@ def dict_cc(word):
     url = 'https://%s-%s.dict.cc/?s=%s' % (config.lang_from, config.lang_to, quote(word))
 
     pairs = []
-    fname = 'urls/' + url.replace('/', "-")
+    fname = config.FDHSN + url.replace('/', "-")
     try:
         p = open(fname).read().split('=====/////-----')
         try:

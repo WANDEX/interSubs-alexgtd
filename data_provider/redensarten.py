@@ -14,7 +14,7 @@ def redensarten(word):
         word) + '&bool=relevanz&gawoe=an&suchspalte%5B%5D=rart_ou&suchspalte%5B%5D=rart_varianten_ou&suchspalte%5B%5D=erl_ou&suchspalte%5B%5D=erg_ou'
 
     pairs = []
-    fname = 'urls/' + url.replace('/', "-")
+    fname = config.FDHSN + url.replace('/', "-")
     try:
         p = open(fname).read().split('=====/////-----')
         try:

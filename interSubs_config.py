@@ -7,6 +7,9 @@
 # all *_B variables are boolean
 ######
 
+# fix hardcoded subdir name
+FDHSN = '.urls/'
+
 # make sure selected translation function supports your language and so that codes of your languages are correct
 # for instance Pons doesn't support Hebrew, Google and Reverso do, but their codes are different: 'iw' and 'he' respectively
 # translate from language

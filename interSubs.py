@@ -758,7 +758,7 @@ if __name__ == "__main__":
 	print('[py part] Starting interSubs ...')
 
 	try:
-		os.mkdir('urls')
+		os.mkdir(config.FDHSN)
 	except:
 		pass
 

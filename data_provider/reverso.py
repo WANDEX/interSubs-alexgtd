@@ -20,7 +20,7 @@ def reverso(word):
     reverso_combos[config.lang_from].lower(), reverso_combos[config.lang_to].lower(), quote(word))
 
     pairs = []
-    fname = 'urls/' + url.replace('/', "-")
+    fname = config.FDHSN + url.replace('/', "-")
     try:
         p = open(fname).read().split('=====/////-----')
 

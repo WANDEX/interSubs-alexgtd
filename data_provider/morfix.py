@@ -12,7 +12,7 @@ def morfix(word):
     url = "http://www.morfix.co.il/en/%s" % quote(word)
 
     pairs = []
-    fname = 'urls/' + url.replace('/', "-")
+    fname = config.FDHSN + url.replace('/', "-")
     try:
         p = open(fname).read().split('=====/////-----')
         try:

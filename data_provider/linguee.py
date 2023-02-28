@@ -10,7 +10,7 @@ def linguee(word):
     url = 'https://www.linguee.com/german-english/search?source=german&query=%s' % quote(word)
 
     pairs = []
-    fname = 'urls/' + url.replace('/', "-")
+    fname = config.FDHSN + url.replace('/', "-")
     try:
         p = open(fname).read().split('=====/////-----')
         try:

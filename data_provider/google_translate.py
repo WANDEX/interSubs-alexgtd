@@ -338,7 +338,7 @@ def google(word):
         lang_from=config.lang_from, lang_to=config.lang_to, word=quote(word))
 
     pairs = []
-    fname = 'urls/' + url.replace('/', "-")
+    fname = config.FDHSN + url.replace('/', "-")
     try:
         if ' ' in word:
             raise Exception('skip saving')
